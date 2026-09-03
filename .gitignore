@@ -9,6 +9,7 @@
 !/docs/
 /docs/*
 !/docs/arquitectura.md
+!/docs/contribucion.md
 !/docs/estado.md
 !/docs/operacion.md
 !/docs/pendientes.md

@@ -47,6 +47,8 @@ Las pruebas usan directorios temporales y no modifican `server_data/`.
   de forma automática o pendiente.
 - [Arquitectura](docs/arquitectura.md): módulos, despacho, identidades,
   persistencia y datos incluidos.
+- [Contribución](docs/contribucion.md): flujo Git, responsabilidades, criterios
+  de cierre y plantilla para solicitar trabajo.
 - [Operación](docs/operacion.md): configuración, puertos, logs, pruebas y
   publicación del repositorio.
 - [Pendientes y limitaciones](docs/pendientes.md): regresiones abiertas,
