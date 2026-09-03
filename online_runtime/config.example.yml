@@ -1,0 +1,54 @@
+# Servers
+
+Servers:
+  NameServer:
+    - port: 5058
+      external_address: 127.0.0.1:5058
+      proxies:
+        - protocol: TCP
+          address: 127.0.0.1:4533
+
+    - port: 27000
+      external_address: 127.0.0.1:27000
+
+  MasterServer:
+    - port: 5055
+      external_address: 127.0.0.1:5055
+      proxies:
+        - protocol: TCP
+          address: 127.0.0.1:4530
+
+    - port: 27001
+      external_address: 127.0.0.1:27001
+
+  GameServer:
+    - port: 5056
+      external_address: 127.0.0.1:5056
+      proxies:
+        - protocol: TCP
+          address: 127.0.0.1:4531
+
+    - port: 27002
+      external_address: 127.0.0.1:27002
+
+
+# Misc settings
+
+EnableIPv6: true
+MaxConnections: 20
+MaxGamePeers: 0
+TickTimeBudget: 2000
+
+
+# Settings database
+# Requires LUXON_SERVER_ENABLE_SETTINGS_DATABASE
+#SettingsDatabase: settings.sqlite3
+
+
+# Web interface and API
+# Requires LUXON_SERVER_ENABLE_WEBSERVER
+
+HTTP:
+  enabled: true
+  address: 0.0.0.0
+  port: 5088
