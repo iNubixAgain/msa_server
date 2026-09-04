@@ -7,11 +7,14 @@ import json
 import hashlib
 import logging
 import threading
+import os
+import ssl
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlsplit
 
 from msa_server.assets import AssetController
+from msa_server import accounts
 from msa_server.bootstrap import prepare_client
 from msa_server.clock import response_clock
 from msa_server.config import (
@@ -98,6 +101,20 @@ class RobustThreadingHTTPServer(ThreadingHTTPServer):
         self.photon_supervisor: PhotonSupervisor | None = None
         self.diagnostic_writer: DiagnosticWriter | None = None
         super().__init__(*args, **kwargs)
+        cert = os.environ.get("MSA_TLS_CERT", "")
+        key = os.environ.get("MSA_TLS_KEY", "")
+        if bool(cert) != bool(key):
+            self.server_close()
+            raise ValueError("Set both MSA_TLS_CERT and MSA_TLS_KEY")
+        if cert:
+            try:
+                context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                context.minimum_version = ssl.TLSVersion.TLSv1_2
+                context.load_cert_chain(cert, key)
+                self.socket = context.wrap_socket(self.socket, server_side=True)
+            except Exception:
+                self.server_close()
+                raise
 
     def process_request_thread(self, request, client_address) -> None:
         with self._worker_count_lock:
@@ -122,14 +139,14 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args: object) -> None:
         # SOLICITUD/RESPUESTA ya contienen la información útil. Evita una
         # tercera entrada por petición salvo que se active nivel DEBUG.
-        logging.debug("%s - %s", self.client_address[0], fmt % args)
+        logging.debug("HTTP request from %s", self.client_address[0])
 
     def send_bytes(self, body: bytes, status: int = 200,
                    content_type: str = "application/json; charset=utf-8") -> None:
         if status >= 400:
             body = b'{"response":{"error_code":1}}'
             content_type = "application/json; charset=utf-8"
-        logging.info("RESPUESTA %s %s bytes=%d tipo=%s", status, self.path,
+        logging.info("RESPUESTA %s %s bytes=%d tipo=%s", status, urlsplit(self.path).path,
                      len(body), content_type)
         self._response_started = True
         self.send_response(status)
@@ -161,6 +178,9 @@ class Handler(BaseHTTPRequestHandler):
     def dispatch(self, persist: bool = False) -> None:
         try:
             self.route(persist=persist)
+        except accounts.AccountError as exc:
+            payload = {"response": {**response_clock(), "error_code": exc.code}}
+            self.send_bytes(json.dumps(payload).encode())
         except RequestBodyTooLarge as exc:
             logging.warning("Petición rechazada por tamaño: ip=%s bytes=%s",
                             self.client_address[0], exc.args[0])
@@ -168,10 +188,10 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_bytes(b"", status=413)
         except (BrokenPipeError, ConnectionResetError, TimeoutError):
             logging.info("Cliente cerró la conexión durante %s desde=%s",
-                         self.path, self.client_address[0])
+                         urlsplit(self.path).path, self.client_address[0])
         except Exception:
             logging.exception("Fallo aislado atendiendo %s desde=%s",
-                              self.path, self.client_address[0])
+                              urlsplit(self.path).path, self.client_address[0])
             self.close_connection = True
             if not self._response_started:
                 try:
@@ -189,12 +209,29 @@ class Handler(BaseHTTPRequestHandler):
         return resolution.client
 
     def route(self, persist: bool = False) -> None:
+        path = unquote(urlsplit(self.path).path).rstrip("/") or "/"
+        if path == "/title/transfer":
+            if not persist or urlsplit(self.path).query:
+                raise accounts.AccountError(400)
+            body = self.read_body()
+            if "application/x-www-form-urlencoded" not in self.headers.get("Content-Type", ""):
+                raise accounts.AccountError(400)
+            params = parse_qs(body.decode("utf-8"), keep_blank_values=True)
+            payload = accounts.transfer(self.headers, params,
+                                        self.client_address[0], MATCHMAKER.account_busy)
+            self._new_device_cookie = payload["terminal_id"]
+            payload["response"] = response_clock()
+            return self.send_bytes(json.dumps(payload).encode())
+        client = self.client_identity()
+        with accounts.request_guard(self.headers, client):
+            self.route_account(client, persist)
+
+    def route_account(self, client: str, persist: bool = False) -> None:
         parsed = urlsplit(self.path)
         path = unquote(parsed.path).rstrip("/") or "/"
         body = self.read_body() if persist else b""
         params = parse_qs(parsed.query, keep_blank_values=True)
         content_type = self.headers.get("Content-Type", "")
-        client = self.client_identity()
         if path not in {"/__offline_status", "/__health"}:
             prepare_client(client, self.client_address[0])
         logging.info("SOLICITUD %s %s desde=%s bytes=%d", self.command, path,
@@ -208,9 +245,24 @@ class Handler(BaseHTTPRequestHandler):
             initial_nick = params.get("name", [None])[0] if path == "/setting/change_setting" else None
             USER_TRACKER.record_activity(client, self.client_address[0], nickname=initial_nick)
 
+        if path in accounts.SENSITIVE_ROUTES:
+            if not persist or parsed.query:
+                raise accounts.AccountError(400)
+            if path == "/setting/upload_save_data":
+                if not accounts.credential(self.headers):
+                    raise accounts.AccountError()
+                accounts.save_backup(client, params)
+                payload = {}
+            else:
+                payload = accounts.issue(self.headers, client, params)
+            payload["response"] = response_clock()
+            return self.send_bytes(json.dumps(payload).encode())
+
         if persist and CAPTURE_HTTP_DIAGNOSTICS:
             safe_name = path.strip("/").replace("/", "__") or "root"
-            record = {"path": path, "query": parsed.query,
+            sensitive = any(key in params for key in (
+                "password", "secret_key", "terminal_id", "save_data"))
+            record = {"path": path, "query": "[REDACTED]" if sensitive else parsed.query,
                       "saved_at": datetime.now(timezone.utc).isoformat(),
                       "source_ip": self.client_address[0],
                       "client_identity": client,
@@ -222,7 +274,7 @@ class Handler(BaseHTTPRequestHandler):
                       "content_type": content_type,
                       "user_agent": self.headers.get("User-Agent", ""),
                       "header_names": sorted(self.headers.keys(), key=str.lower),
-                      "body": body.decode("utf-8", errors="replace")}
+                      "body": "[REDACTED]" if sensitive else body.decode("utf-8", errors="replace")}
             encoded_record = json.dumps(
                 record, ensure_ascii=False, indent=2
             ).encode("utf-8")
@@ -448,15 +500,16 @@ def main() -> None:
         server = RobustThreadingHTTPServer((HOST, PORT), Handler)
         server.photon_supervisor = photon
         server.diagnostic_writer = diagnostic_writer
-        logging.info("MSA escuchando localmente en http://%s:%s", HOST, PORT)
-        logging.info("Endpoint HTTP publico: http://%s:%s",
-                     PUBLIC_HOST, PUBLIC_PORT)
+        scheme = "https" if os.environ.get("MSA_TLS_CERT") else "http"
+        logging.info("MSA escuchando localmente en %s://%s:%s", scheme, HOST, PORT)
+        logging.info("Endpoint HTTP publico: %s://%s:%s",
+                     scheme, PUBLIC_HOST, PUBLIC_PORT)
         logging.info("Photon activo en UDP 5055, 5056 y 5058")
         logging.info("Log automático: %s", LOG_FILE)
         logging.info("Log de usuarios: %s", USER_LOG_FILE)
         logging.info("Log de nicknames: %s", NICKNAME_LOG_FILE)
-        print(f"MSA escuchando localmente en http://{HOST}:{PORT}")
-        print(f"Endpoint HTTP publico: http://{PUBLIC_HOST}:{PUBLIC_PORT}")
+        print(f"MSA escuchando localmente en {scheme}://{HOST}:{PORT}")
+        print(f"Endpoint HTTP publico: {scheme}://{PUBLIC_HOST}:{PUBLIC_PORT}")
         print("Photon activo en UDP 5055, 5056 y 5058")
         print(f"Log automático: {LOG_FILE}")
         print(f"Log de usuarios: {USER_LOG_FILE}")

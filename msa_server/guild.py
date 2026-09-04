@@ -486,16 +486,45 @@ class GuildController:
                 return payload
 
             if path == "/guild/search_guild":
-                query = _first(params, "name", "keyword").casefold()
-                results = []
-                for candidate in state["guilds"].values():
-                    if not isinstance(candidate, dict):
-                        continue
-                    if query and query not in str(candidate.get("name", "")).casefold():
-                        continue
-                    results.append(self._guild_payload(candidate))
-                    if len(results) >= 50:
-                        break
+                # El cliente 7.13.0 envía ``guild_name`` al buscar por nombre
+                # y ``guild_id`` al buscar por ID. ``name``/``keyword`` e
+                # ``id`` se conservan como aliases para herramientas y pruebas.
+                query = _first(
+                    params, "guild_name", "name", "keyword"
+                ).casefold()
+                requested_id = _first(params, "guild_id", "id")
+                offset = max(0, _integer(params, "offset", default=0))
+
+                candidates = sorted(
+                    (
+                        candidate for candidate in state["guilds"].values()
+                        if isinstance(candidate, dict)
+                    ),
+                    key=lambda candidate: int(candidate.get("guild_id", 0)),
+                )
+                if requested_id:
+                    try:
+                        guild_id = int(requested_id)
+                    except (TypeError, ValueError):
+                        candidates = []
+                    else:
+                        candidate = state["guilds"].get(str(guild_id))
+                        candidates = (
+                            [candidate]
+                            if guild_id > 0 and isinstance(candidate, dict)
+                            else []
+                        )
+
+                if query:
+                    candidates = [
+                        candidate for candidate in candidates
+                        if query in str(candidate.get("name", "")).casefold()
+                    ]
+
+                results = [
+                    self._guild_payload(candidate)
+                    for candidate in candidates[offset:offset + 50]
+                ]
                 from .users import user_payload
                 return {
                     "user": user_payload(client=client),

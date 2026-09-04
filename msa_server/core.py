@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Mapping
+import os
 
 from .config import MASTER_VERSION, PUBLIC_HOST, PUBLIC_PORT, SERVER_CONTENT
 from .clock import jst_now_string
@@ -33,8 +34,9 @@ class CoreController:
         if path == "/title/get_pack_info":
             host_header = headers.get("Host", "").strip() if headers else ""
             pack_host = host_header if host_header else f"{PUBLIC_HOST}:{PUBLIC_PORT}"
+            scheme = "https" if os.environ.get("MSA_TLS_CERT") else "http"
             return {"version": 0,
-                    "url": f"http://{pack_host}/snkp/msatk/prod/pack/0/",
+                    "url": f"{scheme}://{pack_host}/snkp/msatk/prod/pack/0/",
                     "response": ok}
         if path == "/title/get_file_list":
             catalog = read_json_file(SERVER_CONTENT / "file_list.json", [])
@@ -70,7 +72,7 @@ class CoreController:
                     "/tutorial/select_affiliation_deck_top", "/tutorial/select_unit",
                     "/tutorial/select_unit_top"}:
             return {"response": ok}
-        if path in {"/setting/upload_save_data", "/setting/upload_push",
+        if path in {"/setting/upload_push",
                     "/setting/kpi"}:
             return {"response": ok}
         if path == "/top_menu/top":

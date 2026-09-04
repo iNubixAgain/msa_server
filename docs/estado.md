@@ -63,3 +63,7 @@ capturar y corregir el fallo nativo.
 - La economía y las tiendas no son plenamente autoritativas ni
   transaccionales.
 - `save_data` se conserva como un blob opaco.
+- Traslado de cuenta: emisión de contraseña, consumo, conservación de identidad
+  y revocación del dispositivo anterior implementados y probados por HTTP.
+  Pendiente restauración nativa y experiencia de errores en dos dispositivos;
+  configuración y restricciones en `operacion.md`.

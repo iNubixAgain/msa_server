@@ -53,5 +53,7 @@ Las pruebas usan directorios temporales y no modifican `server_data/`.
   publicación del repositorio.
 - [Pendientes y limitaciones](docs/pendientes.md): regresiones abiertas,
   funciones parciales y prioridades.
+- [Telemetrización de endpoints](docs/Telemetrización.md): inventario del API
+  del cliente, cobertura del backend y procedencia de sus datos.
 
-Última auditoría de documentación: **3 de septiembre de 2026**.
+Última auditoría de documentación: **4 de septiembre de 2026**.

@@ -54,6 +54,10 @@ def registration_terminal_id(headers: Mapping[str, str],
 def resolve_client_identity(headers: Mapping[str, str],
                             source_ip: str) -> IdentityResolution:
     """Resuelve una instalación sin usar la IP como identidad permanente."""
+    from . import accounts
+    account = accounts.lookup(headers)
+    if account is not None:
+        return IdentityResolution(account)
     terminal_id = headers.get("terminal_id", "").strip()
     fingerprint = (
         headers.get("devicemodel", ""),
@@ -99,6 +103,7 @@ def resolve_client_identity(headers: Mapping[str, str],
     identity = "client-" + hashlib.sha256(
         material.encode("utf-8", errors="replace")
     ).hexdigest()[:24]
+    identity = accounts.bind_legacy(headers, identity)
     register_legacy_ip(identity, source_ip)
     # Un terminal emitido durante un alta limpia no debe heredar el estado de
     # la huella provisional. Dos instalaciones idénticas compartirían esa

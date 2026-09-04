@@ -30,6 +30,13 @@ class OnlineMatchmaker:
                 if self.client_rooms.get(key) is room:
                     self.client_rooms.pop(key, None)
 
+    def account_busy(self, client: str) -> bool:
+        """Conservatively refuse transfers while a room may still use Photon."""
+        with self.condition:
+            self._prune()
+            return any(client in room["clients"]
+                       for room in self.rooms_by_id.values())
+
     def enter(self, mode: str, client: str) -> dict:
         """Asigna sala sin bloquear la transición de la pantalla de búsqueda."""
         capacity = 4 if mode == "2on2" else 2

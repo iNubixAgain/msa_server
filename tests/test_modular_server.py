@@ -36,6 +36,106 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 class ModularServerTests(unittest.TestCase):
+    def test_transfer_is_single_winner_and_does_not_revive_old_receipts(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from msa_server import accounts
+        backup = base64.b64encode(b"opaque").decode()
+        self.payload("/setting/upload_save_data", "concurrent-owner", {"save_data": backup})
+        password = self.payload("/title/takeover", "concurrent-owner", {"secret_key": "key"})["password"]
+        fields = {"password": password, "secret_key": "key"}
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(lambda device: self.raw_payload(
+                "/title/transfer", device, fields), ["target-a", "target-b"]))
+        winners = [r for r in results if "terminal_id" in r]
+        self.assertEqual(len(winners), 1)
+        token = winners[0]["terminal_id"]
+        password2 = self.payload("/title/takeover", token, {"secret_key": "key2"})["password"]
+        self.payload("/title/transfer", "target-c", {"password": password2, "secret_key": "key2"})
+        for destination in ("target-a", "target-b"):
+            rejected = self.raw_payload("/title/transfer", destination, fields)
+            self.assertNotEqual(rejected["response"]["error_code"], 0)
+        self.assertNotEqual(self.raw_payload("/title/login", token)["response"]["error_code"], 0)
+
+    def test_transfer_expiry_limits_and_corrupt_registry_fail_closed(self):
+        from msa_server import accounts
+        backup = base64.b64encode(b"opaque").decode()
+        self.payload("/setting/upload_save_data", "expiry-owner", {"save_data": backup})
+        password = self.payload("/title/takeover", "expiry-owner", {"secret_key": "key"})["password"]
+        with patch.object(accounts.time, "time", return_value=accounts.time.time() + 86401):
+            expired = self.raw_payload("/title/transfer", "target", {"password": password, "secret_key": "key"})
+            self.assertNotEqual(expired["response"]["error_code"], 0)
+        for _ in range(5):
+            denied = self.raw_payload("/title/transfer", "target", {"password": "unknown", "secret_key": "wrong"})
+        denied = self.raw_payload("/title/transfer", "target", {"password": "unknown", "secret_key": "wrong"})
+        self.assertEqual(denied["response"]["error_code"], 429)
+        path = self.isolated_data / "accounts.json"
+        path.write_text("{broken", encoding="utf-8")
+        with self.assertRaises(json.JSONDecodeError):
+            accounts.lookup({"terminal_id": "expiry-owner"})
+
+    def test_transfer_preserves_account_and_revokes_old_device(self):
+        from msa_server import accounts
+        backup = base64.b64encode(b"opaque native fixture").decode()
+        original = self.payload("/setting/change_setting", "transfer-old", {
+            "name": "TRANSFER PLAYER",
+        })["user"]["open_id"]
+        self.payload("/setting/upload_save_data", "transfer-old", {"save_data": backup})
+        password = self.payload("/title/takeover", "transfer-old", {
+            "secret_key": "secret-test",
+        })["password"]
+        fields = {"password": password, "secret_key": "secret-test"}
+        result = self.payload("/title/transfer", "transfer-new", fields)
+        self.assertEqual(result["save_data"], backup)
+        token = result["terminal_id"]
+        self.assertEqual(len(token), 32)
+        retry = self.payload("/title/transfer", "transfer-new", fields)
+        self.assertEqual(retry["terminal_id"], token)
+        login = self.payload("/title/login", token)
+        self.assertEqual(login["user"]["open_id"], original)
+        self.assertEqual(login["user"]["name"], "TRANSFER PLAYER")
+        for path in ("/title/login", "/setting/change_setting", "/title/regist_user",
+                     "/setting/upload_save_data", "/guild/build_guild"):
+            with self.subTest(path=path):
+                denied = self.raw_payload(path, "transfer-old", {
+                    "name": "STOLEN", "save_data": backup,
+                })
+                self.assertNotEqual(denied["response"]["error_code"], 0)
+        denied = self.raw_payload("/title/transfer", "third-device", fields)
+        self.assertNotEqual(denied["response"]["error_code"], 0)
+        registry = (self.isolated_data / "accounts.json").read_text()
+        for secret in (password, "secret-test", token):
+            self.assertNotIn(secret, registry)
+        # Registry is reloaded from disk; losing process caches cannot revive A.
+        accounts._REQUEST_LOCKS.clear()
+        self.assertEqual(self.payload("/title/login", token)["user"]["open_id"], original)
+
+    def test_transfer_requires_backup_and_correct_secret_and_idle_account(self):
+        backup = base64.b64encode(b"opaque backup").decode()
+        missing = self.raw_payload("/title/takeover", "transfer-a", {"secret_key": "key"})
+        self.assertNotEqual(missing["response"]["error_code"], 0)
+        self.payload("/setting/upload_save_data", "transfer-a", {"save_data": backup})
+        password = self.payload("/title/takeover", "transfer-a", {"secret_key": "key"})["password"]
+        wrong = self.raw_payload("/title/transfer", "transfer-b", {
+            "password": password, "secret_key": "wrong",
+        })
+        self.assertNotEqual(wrong["response"]["error_code"], 0)
+        self.payload("/online_1on1/create_or_enter_room", "transfer-a", {})
+        blocked = self.raw_payload("/title/transfer", "transfer-b", {
+            "password": password, "secret_key": "key",
+        })
+        self.assertEqual(blocked["response"]["error_code"], 409)
+        self.payload("/title/login", "transfer-a")
+
+    def test_transfer_secrets_are_not_captured_and_backup_is_validated(self):
+        backup = base64.b64encode(b"private native backup").decode()
+        with patch.object(server, "CAPTURE_HTTP_DIAGNOSTICS", True):
+            self.payload("/setting/upload_save_data", "private-device", {"save_data": backup})
+            self.payload("/title/takeover", "private-device", {"secret_key": "private-key"})
+        self.assertFalse(list(self.isolated_data.rglob("*upload_save_data*")))
+        self.assertFalse(list(self.isolated_data.rglob("*takeover*")))
+        bad = self.raw_payload("/setting/upload_save_data", "private-device", {"save_data": "not base64!"})
+        self.assertEqual(bad["response"]["error_code"], 400)
+
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
         self.isolated_data = Path(self.temp.name)
@@ -768,6 +868,53 @@ class ModularServerTests(unittest.TestCase):
         self.assertFalse(self.isolated_data.joinpath("guilds.json").read_text(
             encoding="utf-8"
         ).find('"METAL ELITE"') >= 0)
+
+    def test_guild_search_uses_client_name_id_and_offset_fields(self) -> None:
+        alpha = self.payload("/guild/build_guild", "search-alpha", {
+            "name": "ÁGUILAS DEL METAL",
+        })["guild_info"]
+        beta = self.payload("/guild/build_guild", "search-beta", {
+            "name": "BETA FORCE",
+        })["guild_info"]
+        numeric = self.payload("/guild/build_guild", "search-numeric", {
+            "name": "14",
+        })["guild_info"]
+
+        by_name = self.payload("/guild/search_guild", "search-viewer", {
+            "guild_name": "águilas", "offset": 0,
+        })
+        self.assertEqual(by_name["num"], 1)
+        self.assertEqual(by_name["guild"][0]["guild_id"], alpha["guild_id"])
+
+        by_id = self.payload("/guild/search_guild", "search-viewer", {
+            "guild_id": beta["guild_id"], "offset": 0,
+        })
+        self.assertEqual(by_id["num"], 1)
+        self.assertEqual(by_id["guild"][0]["name"], "BETA FORCE")
+
+        numeric_name = self.payload(
+            "/guild/search_guild", "search-viewer", {
+                "guild_name": "14", "offset": 0,
+            },
+        )
+        self.assertEqual(
+            [entry["guild_id"] for entry in numeric_name["guild"]],
+            [numeric["guild_id"]],
+        )
+
+        missing_id = self.payload("/guild/search_guild", "search-viewer", {
+            "guild_id": 4_294_967_295, "offset": 0,
+        })
+        self.assertEqual(missing_id["guild"], [])
+        self.assertEqual(missing_id["num"], 0)
+
+        second_page = self.payload("/guild/search_guild", "search-viewer", {
+            "offset": 1,
+        })
+        self.assertEqual(
+            [entry["guild_id"] for entry in second_page["guild"]],
+            [beta["guild_id"], numeric["guild_id"]],
+        )
 
     def test_guild_kind_ids_roles_and_one_time_are_not_conflated(self) -> None:
         first = self.payload("/guild/build_guild", "guild-first", {
