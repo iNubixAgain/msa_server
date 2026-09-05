@@ -8,6 +8,7 @@ import threading
 from datetime import datetime, timezone
 
 from . import storage
+from .clock import jst_now_string
 from .identity import public_player_id
 from .profiles import get_profile
 
@@ -654,7 +655,9 @@ class SocialController:
                     ).replace(tzinfo=timezone.utc)
                     sent_timestamp = int(parsed_date.timestamp())
                 except ValueError:
-                    sent_timestamp = int(datetime.now(timezone.utc).timestamp())
+                    logging.warning("Mensaje omitido: fecha persistida invalida id=%s",
+                                    stored.get("id", ""))
+                    continue
             entry = {
                 # El id de salida incluye la relación vigente para impedir
                 # que SceneMessage reutilice un PersonData obsoleto después
@@ -673,7 +676,10 @@ class SocialController:
                 "message": str(stored.get("message", "")),
                 "text": str(stored.get("message", "")),
                 "param": str(stored.get("param", "")),
-                "timestamp": str(sent_timestamp),
+                # parseMessageInfo constructs DateTime(const char*), not an
+                # epoch parser. Native wire dates use the server's JST clock.
+                "timestamp": jst_now_string(
+                    datetime.fromtimestamp(sent_timestamp, timezone.utc)),
                 "datetime": sent_timestamp,
                 "date_time": str(stored.get("datetime", "")),
                 "send_date_time": str(stored.get("datetime", "")),

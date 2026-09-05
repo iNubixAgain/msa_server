@@ -36,6 +36,35 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 class ModularServerTests(unittest.TestCase):
+    def test_special_ops_entry_has_native_unavailable_contract(self):
+        response = self.payload("/guild_coop/top", "coop-entry", {"coop_id": 0})
+        self.assertIn("guild", response)
+        self.assertEqual(response["info"], {
+            "event": "2023-01-12 15:30:00", "help_remain": 0,
+            "person": [], "playable": False, "stage": [],
+        })
+        self.assertEqual(response["rental_soldier"], {"unit": [], "available": 0})
+
+    def test_chat_wire_dates_preserve_distinct_instants_across_reads(self):
+        from datetime import datetime, timezone
+        from msa_server import social
+        for instant, message in (("2026-09-01T20:10:05", "earlier"),
+                                 ("2026-09-03T02:30:40", "later")):
+            clock = datetime.fromisoformat(instant).replace(tzinfo=timezone.utc)
+            with patch.object(social, "datetime", wraps=datetime) as mocked:
+                mocked.now.return_value = clock
+                self.payload("/mypage/chat", "dated-sender", {
+                    "message_type": 1, "message": message,
+                })
+        first = self.payload("/mypage/get_message_info", "dated-reader",
+                             {"message_type": 1})["message_info"]
+        self.assertEqual([m["timestamp"] for m in first],
+                         ["2026-09-03 11:30:40", "2026-09-02 05:10:05"])
+        second = self.payload("/mypage/get_message_info", "dated-reader",
+                              {"message_type": 1})["message_info"]
+        self.assertEqual([m["timestamp"] for m in first],
+                         [m["timestamp"] for m in second])
+
     def test_native_chat_marks_are_per_channel_and_survive_mailbox_reads(self):
         recipient = "badge-recipient"
         sender = "badge-sender"
@@ -63,7 +92,7 @@ class ModularServerTests(unittest.TestCase):
         self.assertEqual(self.payload("/guild_battle/top", recipient)
                          ["last_message_date"], after)
 
-    def test_transfer_is_single_winner_and_does_not_revive_old_receipts(self):
+    def test_permanent_password_serializes_transfers_and_explicit_replacement_revokes_it(self):
         from concurrent.futures import ThreadPoolExecutor
         from msa_server import accounts
         backup = base64.b64encode(b"opaque").decode()
@@ -78,11 +107,14 @@ class ModularServerTests(unittest.TestCase):
                 "/title/transfer", device, fields_by_device[device]),
                 ["target-a", "target-b"]))
         winners = [r for r in results if "terminal_id" in r]
-        self.assertEqual(len(winners), 1)
-        token = winners[0]["terminal_id"]
-        winner_key = "target-key-a" if winners[0] is results[0] else "target-key-b"
+        self.assertEqual(len(winners), 2)
+        active = [r["terminal_id"] for r in winners
+                  if self.raw_payload("/title/login", r["terminal_id"])
+                  ["response"]["error_code"] == 0]
+        self.assertEqual(len(active), 1)
+        token = active[0]
         password2 = self.payload("/title/takeover", token, {
-            "secret_key": winner_key,
+            "secret_key": "replacement",
         })["password"]
         self.payload("/title/transfer", "target-c", {
             "password": password2, "secret_key": "target-key-c",
@@ -144,16 +176,16 @@ class ModularServerTests(unittest.TestCase):
                     "name": "STOLEN", "save_data": backup,
                 })
                 self.assertNotEqual(denied["response"]["error_code"], 0)
-        denied = self.raw_payload("/title/transfer", "third-device", {
+        moved = self.payload("/title/transfer", "third-device", {
             "password": password, "secret_key": "third-device-secret",
         })
-        self.assertNotEqual(denied["response"]["error_code"], 0)
+        self.assertNotEqual(moved["terminal_id"], token)
         registry = (self.isolated_data / "accounts.json").read_text()
         for secret in (password, "secret-test", "new-device-secret", token):
             self.assertNotIn(secret, registry)
         # Registry is reloaded from disk; losing process caches cannot revive A.
         accounts._REQUEST_LOCKS.clear()
-        self.assertEqual(self.payload("/title/login", token)["user"]["open_id"], original)
+        self.assertEqual(self.payload("/title/login", moved["terminal_id"])["user"]["open_id"], original)
 
     def test_transfer_requires_backup_and_correct_secret_and_idle_account(self):
         backup = base64.b64encode(b"opaque backup").decode()
@@ -1489,7 +1521,8 @@ class ModularServerTests(unittest.TestCase):
         self.assertIsInstance(
             chat["message_info"][0]["datetime"], int
         )
-        self.assertTrue(chat["message_info"][0]["timestamp"].isdigit())
+        from datetime import datetime
+        datetime.strptime(chat["message_info"][0]["timestamp"], "%Y-%m-%d %H:%M:%S")
         self.assertEqual(
             chat["message_info"][0]["person"]["user"], alpha_id
         )

@@ -100,7 +100,7 @@ excepciones mixtas se detallan en la misma celda.
 | `gacha` | `box_reset`, `fever_get_bonus`, `free_play`, `get_vip_bonus`, `play`, `premium_get_reward`, `select_play`, `ticket_play`, `top` | **F/P**, `GachaController`; genera resultados, pero la economía y todas las variantes históricas no están completas. |
 | `guild` | `break_guild`, `build_guild`, `camp_soldier`, `command_member`, `delete_request`, `edit_guild_info`, `get_guild_bonus`, `gj`, `join_approval`, `join_guild`, `join_onetime_guild`, `request_enrollment`, `return_soldier`, `search_guild` | **F**, `GuildController`; estado global de gremios. `search_guild` acepta los campos nativos `guild_name`, `guild_id` y `offset`, además de aliases internos. |
 | `guild_battle` | `area_keep`, `bid`, `playable`, `raid_end`, `raid_start`, `stock`, `top` | **F/P**, `GuildController`; estructura nativa y estado, combate/economía parciales. |
-| `guild_coop` | `member_coop_battle_end`, `member_coop_battle_start`, `member_coop_request`, `stage_keep`, `top` | **G**, sin controlador. |
+| `guild_coop` | `member_coop_battle_end`, `member_coop_battle_start`, `member_coop_request`, `stage_keep`, `top` | **P**: `top` entrega el contrato nativo sin operación disponible; solicitudes, reservas y combate pendientes. |
 | `guild_online_1on1` | `battle_end`, `battle_start`, `create_room`, `decide_room`, `leave_room` | **G**, sin controlador; solo está implementada la variante de gremio 2v2. |
 | `guild_online_2on2` | `battle_end`, `battle_start`, `create_room`, `decide_room`, `leave_room` | **F**, `GuildOnlineController`; sala efímera y relay Photon. |
 | `guild_shop` | `buy`, `top`, `update` | **P**, `GameplayController`; tienda vacía. |
@@ -322,7 +322,10 @@ no implementa esta modalidad.
 
 El menú publica además `guild_member_coop_btl_event` y
 `guild_member_coop_btl_identifier`. Actualmente el servidor entrega la hora
-actual e ID cero y **carece de controlador `guild_coop`**. Por tanto no hay
+actual e ID cero. Se añadió `GuildCoopController` para responder a `top`
+con `guild`, `info` y `rental_soldier`, etapas vacías y `playable=false`.
+Esto corrige la ausencia del endpoint de entrada; la presentación final
+requiere validación en dispositivo. Por tanto no hay
 operación activa, reserva de etapas ni combate cooperativo reproducible.
 `GuildCoop_MemberCoopBattleStart::extractResponseJson` (0x1433314) pasa la
 cadena `enemy_data` a `EnemyContext::setData`; `getParamList` (0x1338c34)
@@ -378,3 +381,15 @@ a uno produciría avisos de recompensas o contenido no disponible. La
 reactivación completa de esos indicadores sigue pendiente de implementar
 sus condiciones de negocio; únicamente las marcas sociales se corrigieron
 en esta intervención.
+
+### Fechas de los mensajes
+
+`parseMessageInfo` (0x13bd95c) lee `timestamp` y llama a
+`DateTime(const char*)` en 0x13bdbf0. Enviar segundos Unix como cadena
+no satisface ese contrato. Ahora se convierte el instante UTC persistido
+a `YYYY-MM-DD HH:MM:SS` JST, igual que el reloj de respuestas del servidor.
+La conversión no cambia el instante original ni usa la hora de consulta.
+Se preservan los datos existentes; una fecha heredada sin epoch se interpreta
+como UTC. Si ambos valores son inválidos se omite esa fila con advertencia
+en el log, sin asignarle una fecha ficticia. La zona visible final depende
+del tratamiento de `DateTime` en la interfaz del dispositivo.

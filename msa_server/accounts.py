@@ -162,14 +162,10 @@ def issue(headers, client, params):
             raise AccountError()
         # The active terminal authenticates issuance. Do not assume the
         # client's form secret survives a backup restore or a new issuance.
-        now = time.time()
-        # One pending password per account. Unused passwords do not expire;
-        # consumed retry receipts can be discarded after their short window.
+        # Only explicit replacement revokes a password, even after transfers.
         state["grants"] = {
             key: value for key, value in state["grants"].items()
             if value["account"] != client
-            and not (value.get("used")
-                     and value.get("retry_until", 0) <= now)
         }
         state["grants"][hashlib.sha256(password.encode()).hexdigest()] = {
             "account": client, "used": False,
@@ -210,21 +206,23 @@ def transfer(headers, params, source_ip, busy):
         grant = state["grants"].get(key)
         if grant is None:
             raise AccountError(10103001)
-        if grant["used"]:
+        retry = False
+        if grant.get("used"):
             salt = grant.get("destination_salt", "")
             verifier = grant.get("destination_verifier", "")
-            if (grant["retry_until"] <= time.time()
-                    or not salt or not verifier
-                    or not hmac.compare_digest(
-                        _verifier(destination_secret, salt), verifier)):
-                raise AccountError(10103001)
-        else:
+            retry = bool(
+                grant.get("retry_until", 0) > time.time()
+                and salt and verifier
+                and grant.get("destination_device") == credential(headers)
+                and hmac.compare_digest(_verifier(destination_secret, salt), verifier))
+        if not retry:
             if busy(account):
                 raise AccountError(409)
             _backup(account)
             destination_salt = secrets.token_hex(16)
             grant.update(
                 used=True,
+                destination_device=credential(headers),
                 destination_salt=destination_salt,
                 destination_verifier=_verifier(
                     destination_secret, destination_salt),

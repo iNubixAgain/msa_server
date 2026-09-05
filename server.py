@@ -44,6 +44,7 @@ from msa_server.gameplay import GameplayController
 from msa_server.friend_online import FriendOnlineController
 from msa_server.gacha import GachaController
 from msa_server.guild import GuildController
+from msa_server.guild_coop import GuildCoopController
 from msa_server.guild_online import GuildOnlineController
 from msa_server.identity import resolve_client_identity
 from msa_server.lifecycle import acquire_single_instance_lock, configure_logging
@@ -79,6 +80,7 @@ GAMEPLAY = GameplayController()
 GACHA = GachaController()
 ULTIMATE_MISSION = UltimateMissionController()
 GUILD = GuildController()
+GUILD_COOP = GuildCoopController(GUILD)
 SNATCH_WARS = SnatchWarsController()
 CORE = CoreController(SOCIAL, USER_TRACKER, NOTIFICATIONS)
 ASSETS_CONTROLLER = AssetController()
@@ -393,6 +395,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_bytes(json.dumps(
                     payload, separators=(",", ":")
                 ).encode())
+
+        coop_payload = GUILD_COOP.handle(path, client, params, ok)
+        if coop_payload is not None:
+            return self.send_bytes(json.dumps(coop_payload).encode())
 
         if GUILD.handles(path):
             payload = GUILD.handle(path, client, params, ok)

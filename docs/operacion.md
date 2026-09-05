@@ -92,10 +92,14 @@ El servidor implementa el contrato de MSA 7.13.0 en `msa_server/accounts.py`:
   completar el traslado. No se fusiona su progreso anterior.
 
 Estos endpoints no aceptan secretos en la URL. La contraseña tiene 12
-caracteres alfanuméricos, no caduca mientras esté pendiente y se consume una
-sola vez; generar otra para la misma cuenta invalida la anterior. Durante 10
-minutos después de consumirla, la misma clave del dispositivo destino puede
-repetir la solicitud si perdió la respuesta. Hay un límite de 5 intentos por
+caracteres alfanuméricos y es reutilizable sin caducidad. Solo generar otra
+para la misma cuenta invalida la anterior. Cada traslado revoca los accesos
+anteriores. Durante 10 minutos, el mismo destino y `secret_key` pueden
+repetir la última solicitud sin volver a rotar la credencial si se perdió la
+respuesta; esa ventana no limita la vigencia de la contraseña.
+Las contraseñas existentes aún presentes en el registro también se pueden
+reutilizar; no se recuperan las que versiones anteriores ya eliminaron.
+Hay un límite de 5 intentos por
 minuto por IP y por contraseña existente. La clave
 secreta se verifica mediante scrypt con sal; las contraseñas y credenciales de
 dispositivo se indexan mediante hashes. Los cuerpos sensibles se excluyen de la captura
