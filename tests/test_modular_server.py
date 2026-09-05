@@ -67,18 +67,22 @@ class ModularServerTests(unittest.TestCase):
             self.assertNotEqual(rejected["response"]["error_code"], 0)
         self.assertNotEqual(self.raw_payload("/title/login", token)["response"]["error_code"], 0)
 
-    def test_transfer_expiry_limits_and_corrupt_registry_fail_closed(self):
+    def test_transfer_has_no_expiry_limits_attempts_and_fails_closed(self):
         from msa_server import accounts
         backup = base64.b64encode(b"opaque").decode()
         self.payload("/setting/upload_save_data", "expiry-owner", {"save_data": backup})
         password = self.payload("/title/takeover", "expiry-owner", {"secret_key": "key"})["password"]
-        with patch.object(accounts.time, "time", return_value=accounts.time.time() + 86401):
-            expired = self.raw_payload("/title/transfer", "target", {"password": password, "secret_key": "key"})
-            self.assertNotEqual(expired["response"]["error_code"], 0)
         for _ in range(5):
             denied = self.raw_payload("/title/transfer", "target", {"password": "unknown", "secret_key": "wrong"})
         denied = self.raw_payload("/title/transfer", "target", {"password": "unknown", "secret_key": "wrong"})
         self.assertEqual(denied["response"]["error_code"], 429)
+        ten_years = 10 * 365 * 24 * 60 * 60
+        with patch.object(accounts.time, "time",
+                          return_value=accounts.time.time() + ten_years):
+            transferred = self.payload("/title/transfer", None, {
+                "password": password, "secret_key": "new-device-key",
+            })
+        self.assertIn("terminal_id", transferred)
         path = self.isolated_data / "accounts.json"
         path.write_text("{broken", encoding="utf-8")
         with self.assertRaises(json.JSONDecodeError):
@@ -94,6 +98,8 @@ class ModularServerTests(unittest.TestCase):
         password = self.payload("/title/takeover", "transfer-old", {
             "secret_key": "secret-test",
         })["password"]
+        self.assertEqual(len(password), 12)
+        self.assertTrue(password.isascii() and password.isalnum())
         fields = {"password": password, "secret_key": "new-device-secret"}
         result = self.payload("/title/transfer", None, fields)
         self.assertEqual(result["save_data"], backup)

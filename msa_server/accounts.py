@@ -21,9 +21,10 @@ _LOCK = threading.RLock()
 _REQUEST_LOCKS: dict[str, threading.RLock] = {}
 SENSITIVE_ROUTES = {"/title/takeover", "/title/transfer",
                     "/setting/upload_save_data"}
-TRANSFER_TTL = 24 * 60 * 60
 RETRY_TTL = 10 * 60
 MAX_BACKUP_BYTES = 4 * 1024 * 1024
+PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+PASSWORD_LENGTH = 12
 
 
 class AccountError(Exception):
@@ -164,7 +165,9 @@ def issue(headers, client, params):
         raise AccountError()
     secret = _field(params, "secret_key")
     _backup(client)
-    password = secrets.token_hex(8)
+    password = "".join(
+        secrets.choice(PASSWORD_ALPHABET) for _ in range(PASSWORD_LENGTH)
+    )
     with _LOCK:
         state = _load()
         device = state["devices"].get(device_key)
@@ -173,10 +176,16 @@ def issue(headers, client, params):
             raise AccountError()
         _bind_or_verify_secret(device, secret)
         now = time.time()
-        state["grants"] = {key: value for key, value in state["grants"].items()
-                           if value["account"] != client and value["expires"] > now}
+        # One pending password per account. Unused passwords do not expire;
+        # consumed retry receipts can be discarded after their short window.
+        state["grants"] = {
+            key: value for key, value in state["grants"].items()
+            if value["account"] != client
+            and not (value.get("used")
+                     and value.get("retry_until", 0) <= now)
+        }
         state["grants"][hashlib.sha256(password.encode()).hexdigest()] = {
-            "account": client, "expires": now + TRANSFER_TTL, "used": False,
+            "account": client, "used": False,
         }
         _save(state)
     return {"password": password}
@@ -205,14 +214,14 @@ def transfer(headers, params, source_ip, busy):
         state = _load()
         _rate_limit(state, source_ip)
         grant = state["grants"].get(key)
-        if grant is None or grant["expires"] <= time.time():
+        if grant is None:
             raise AccountError(10103001)
         _rate_limit(state, "grant:" + key)
         account = grant["account"]
     with _request_lock(account), _LOCK:
         state = _load()
         grant = state["grants"].get(key)
-        if grant is None or grant["expires"] <= time.time():
+        if grant is None:
             raise AccountError(10103001)
         if grant["used"]:
             salt = grant.get("destination_salt", "")

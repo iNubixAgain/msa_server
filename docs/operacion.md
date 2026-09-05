@@ -88,10 +88,12 @@ El servidor implementa el contrato de MSA 7.13.0 en `msa_server/accounts.py`:
   instalación nueva puede llamar sin `terminal_id`; el servidor lo emite al
   completar el traslado. No se fusiona su progreso anterior.
 
-Estos endpoints no aceptan secretos en la URL. La contraseña vence a las
-24 horas y se consume una sola vez; durante 10 minutos la misma clave del
-dispositivo destino puede repetir la solicitud si perdió la respuesta. Hay un
-límite de 5 intentos por minuto por IP y por contraseña existente. La clave
+Estos endpoints no aceptan secretos en la URL. La contraseña tiene 12
+caracteres alfanuméricos, no caduca mientras esté pendiente y se consume una
+sola vez; generar otra para la misma cuenta invalida la anterior. Durante 10
+minutos después de consumirla, la misma clave del dispositivo destino puede
+repetir la solicitud si perdió la respuesta. Hay un límite de 5 intentos por
+minuto por IP y por contraseña existente. La clave
 secreta se verifica mediante scrypt con sal; las contraseñas y credenciales de
 dispositivo se indexan mediante hashes. Los cuerpos sensibles se excluyen de la captura
 diagnóstica y las URLs completas no se escriben en el registro HTTP.
@@ -105,7 +107,7 @@ como las salas se conservan temporalmente, puede ser necesario esperar hasta
 su caducidad de 10 minutos, incluso después de terminar una partida.
 
 El protocolo devuelve HTTP 200 con `error_code`: `10103001` para una
-contraseña/clave inválida o caducada, `401` para credencial revocada, `400` para
+contraseña/clave inválida, `401` para credencial revocada, `400` para
 entrada inválida, `409` para respaldo ausente o sala pendiente y `429` para
 límite de intentos. El texto y la navegación que muestra el cliente ante esos
 errores todavía requieren validación visual.
