@@ -145,25 +145,11 @@ def _verifier(secret, salt):
                           n=16384, r=8, p=1).hex()
 
 
-def _bind_or_verify_secret(device: dict, secret: str) -> None:
-    """Bind legacy devices once; afterwards authenticate their local key."""
-    salt = device.get("secret_salt")
-    verifier = device.get("secret_verifier")
-    if salt is None and verifier is None:
-        salt = secrets.token_hex(16)
-        device["secret_salt"] = salt
-        device["secret_verifier"] = _verifier(secret, salt)
-        return
-    if (not isinstance(salt, str) or not isinstance(verifier, str)
-            or not hmac.compare_digest(_verifier(secret, salt), verifier)):
-        raise AccountError(10103001)
-
-
 def issue(headers, client, params):
     device_key = credential(headers)
     if not device_key:
         raise AccountError()
-    secret = _field(params, "secret_key")
+    _field(params, "secret_key")
     _backup(client)
     password = "".join(
         secrets.choice(PASSWORD_ALPHABET) for _ in range(PASSWORD_LENGTH)
@@ -174,7 +160,8 @@ def issue(headers, client, params):
         if (device is None or not device.get("active")
                 or device.get("account") != client):
             raise AccountError()
-        _bind_or_verify_secret(device, secret)
+        # The active terminal authenticates issuance. Do not assume the
+        # client's form secret survives a backup restore or a new issuance.
         now = time.time()
         # One pending password per account. Unused passwords do not expire;
         # consumed retry receipts can be discarded after their short window.
@@ -258,8 +245,6 @@ def transfer(headers, params, source_ip, busy):
         state["devices"][token_key] = {
             "account": account,
             "active": True,
-            "secret_salt": grant["destination_salt"],
-            "secret_verifier": grant["destination_verifier"],
         }
         backup = _backup(account)
         _save(state)

@@ -79,7 +79,9 @@ class CoreController:
             now = str(ok.get("now_time") or jst_now_string())
             social_status = (
                 self.social.menu_status(client) if self.social else {
-                    "last_message_date": now, "current_friend_num": 0,
+                    "last_message_date": dict.fromkeys(
+                        ("world", "guild", "personal", "system"), ""),
+                    "current_friend_num": 0,
                 }
             )
             notification_status = (

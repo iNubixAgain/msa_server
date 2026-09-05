@@ -36,6 +36,33 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 class ModularServerTests(unittest.TestCase):
+    def test_native_chat_marks_are_per_channel_and_survive_mailbox_reads(self):
+        recipient = "badge-recipient"
+        sender = "badge-sender"
+        target = self.payload("/title/login", recipient)["user"]["open_id"]
+        self.payload("/title/login", sender)
+        self.payload("/friend/top", recipient)
+        self.payload("/friend/top", sender)
+        before = self.payload("/top_menu/top", recipient)["last_message_date"]
+        self.assertEqual(before, dict.fromkeys(
+            ("world", "guild", "personal", "system"), ""))
+        self.payload("/mypage/chat", sender, {
+            "message_type": 3, "open_id": target, "message": "badge test",
+        })
+        after = self.payload("/top_menu/top", recipient)["last_message_date"]
+        self.assertTrue(after["personal"])
+        self.assertEqual(after["world"], before["world"])
+        self.assertEqual(after["guild"], before["guild"])
+        self.assertEqual(self.payload("/top_menu/top", "badge-observer")
+                         ["last_message_date"], before)
+        self.payload("/mail/top", recipient)
+        self.assertEqual(self.payload("/top_menu/top", recipient)
+                         ["last_message_date"], after)
+        self.assertEqual(self.payload("/mypage/get_message_info", recipient,
+                                      {"message_type": 3})["last_message_date"], after)
+        self.assertEqual(self.payload("/guild_battle/top", recipient)
+                         ["last_message_date"], after)
+
     def test_transfer_is_single_winner_and_does_not_revive_old_receipts(self):
         from concurrent.futures import ThreadPoolExecutor
         from msa_server import accounts
@@ -141,19 +168,42 @@ class ModularServerTests(unittest.TestCase):
         self.assertEqual(blocked["response"]["error_code"], 409)
         self.payload("/title/login", "transfer-a")
 
-    def test_takeover_authenticates_the_current_device_secret(self):
+    def test_transfer_round_trip_allows_new_secret_and_revokes_previous_terminal(self):
         backup = base64.b64encode(b"opaque backup").decode()
         self.payload("/setting/upload_save_data", "source-device", {
             "save_data": backup,
         })
+        original = self.payload("/title/login", "source-device")["user"]["open_id"]
         first = self.payload("/title/takeover", "source-device", {
             "secret_key": "source-local-secret",
         })
-        denied = self.raw_payload("/title/takeover", "source-device", {
-            "secret_key": "different-device-secret",
+        moved = self.payload("/title/transfer", None, {
+            "password": first["password"], "secret_key": "transfer-form-secret",
         })
-        self.assertEqual(denied["response"]["error_code"], 10103001)
-        self.assertIn("password", first)
+        token = moved["terminal_id"]
+        # Reproduce registries written by the previous version.
+        from msa_server import accounts
+        state = accounts._load()
+        device = state["devices"][accounts.credential({"terminal_id": token})]
+        device.update(secret_salt="00" * 16, secret_verifier="legacy-verifier")
+        accounts._save(state)
+        second = self.payload("/title/takeover", token, {
+            "secret_key": "new-issuance-form-secret",
+        })
+        denied = self.raw_payload("/title/takeover", "source-device", {
+            "secret_key": "new-issuance-form-secret",
+        })
+        self.assertEqual(denied["response"]["error_code"], 401)
+        returned = self.payload("/title/transfer", "source-device", {
+            "password": second["password"], "secret_key": "return-form-secret",
+        })
+        self.assertEqual(self.payload("/title/login", returned["terminal_id"])
+                         ["user"]["open_id"], original)
+        self.assertEqual(self.raw_payload("/title/login", token)
+                         ["response"]["error_code"], 401)
+        self.assertEqual(self.raw_payload("/title/transfer", None, {
+            "password": first["password"], "secret_key": "transfer-form-secret",
+        })["response"]["error_code"], 10103001)
 
     def test_transfer_secrets_are_not_captured_and_backup_is_validated(self):
         backup = base64.b64encode(b"private native backup").decode()
@@ -1530,10 +1580,11 @@ class ModularServerTests(unittest.TestCase):
         target_menu = self.payload("/top_menu/top", "target")
         requester_menu = self.payload("/top_menu/top", "requester")
         self.assertEqual(
-            target_menu["last_message_date"], notices[0]["date_time"]
+            target_menu["last_message_date"]["personal"],
+            notices[0]["id"].split("-r")[0]
         )
         self.assertEqual(
-            requester_menu["last_message_date"], "2023-01-12 15:30:00"
+            requester_menu["last_message_date"]["personal"], ""
         )
 
         self.payload("/friend/sever", "target", {"user": requester_id})

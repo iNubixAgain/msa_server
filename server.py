@@ -397,6 +397,8 @@ class Handler(BaseHTTPRequestHandler):
         if GUILD.handles(path):
             payload = GUILD.handle(path, client, params, ok)
             if payload is not None:
+                if path == "/guild_battle/top":
+                    payload["last_message_date"] = SOCIAL.menu_status(client)["last_message_date"]
                 events = payload.pop("_server_events", [])
                 for event in events if isinstance(events, list) else []:
                     if (isinstance(event, dict)

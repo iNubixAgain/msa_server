@@ -321,12 +321,12 @@ class SocialController:
         jugador tiene un mensaje entrante visible.
         """
         player_id = public_player_id(client)
-        default_date = "2023-01-12 15:30:00"
         with _SOCIAL_LOCK:
             state = _load_state()
             stores = _load_message_stores(state)
             blocked = set(state["blacklists"].get(player_id, []))
-            last_message_date = default_date
+            last_message_date = dict.fromkeys(
+                ("world", "guild", "personal", "system"), "")
             from .guild import guild_id_for_client
             guild_id = guild_id_for_client(client)
             guild_messages = (
@@ -338,7 +338,8 @@ class SocialController:
             )
             for stored in sorted(
             visible_messages,
-                    key=lambda item: _safe_int(item.get("timestamp", 0)),
+                    key=lambda item: (_safe_int(item.get("timestamp", 0)),
+                                      str(item.get("id", ""))),
                     reverse=True):
                 if not isinstance(stored, dict):
                     continue
@@ -357,10 +358,12 @@ class SocialController:
                         continue
                 elif message_type != 1:
                     continue
-                candidate = str(stored.get("datetime", "")).strip()
-                if candidate:
-                    last_message_date = candidate
-                    break
+                channel = {1: "world", 2: "guild", 3: "personal"}[message_type]
+                # Native MessageLast stores opaque strings, not DateTime.
+                # IDs distinguish messages delivered within the same second.
+                candidate = str(stored.get("id", "")).strip()
+                if candidate and not last_message_date[channel]:
+                    last_message_date[channel] = candidate
             friend_count = len(_unique(state["friends"].get(player_id, [])))
         return {
             "last_message_date": last_message_date,
@@ -701,15 +704,9 @@ class SocialController:
         # `chat_chance` es el saldo disponible. El cliente admite como máximo
         # 10, por lo que reponerlo a 10 en cada consulta y después de cada
         # envío permite escribir indefinidamente sin parchear el APK.
-        last_message_date = (
-            str(stored_messages[-1].get("datetime", ""))
-            if stored_messages and isinstance(stored_messages[-1], dict)
-            else "2023-01-12 15:30:00"
-        )
         logging.info("Social message_info actor=%s type=%d mensajes=%d",
                      player_id, message_type, len(world))
         return {"message_info": world, "chat_chance": 10,
-                "last_message_date": last_message_date,
                 "response": ok}
 
     def _chat(self, state: dict, stores: dict, player_id: str,
@@ -818,6 +815,8 @@ class SocialController:
                 payload = self._top(state, player_id, ok)
             _save_state(state)
             _save_message_stores(stores, state)
+            if "message_info" in payload:
+                payload["last_message_date"] = self.menu_status(client)["last_message_date"]
             return payload
 
     def blacklist_entries(self, state: dict, player_id: str) -> list[dict]:

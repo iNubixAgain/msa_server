@@ -79,9 +79,12 @@ El servidor implementa el contrato de MSA 7.13.0 en `msa_server/accounts.py`:
   conserva exactamente el texto recibido, con límite de 4 MiB y validación
   del envoltorio Base64; no se interpreta el formato binario interno.
 - `POST /title/takeover`: formulario con `secret_key`; requiere un respaldo
-  previo y devuelve `password`. `secret_key` autentica la instalación actual;
-  en cuentas antiguas queda vinculada en el primer uso. Emitir otra contraseña
-  invalida la anterior.
+  previo y devuelve `password`. La credencial activa (`terminal_id` o cookie)
+  autentica la emisión. Se valida la presencia de `secret_key` sin exigir que
+  coincida con formularios anteriores: puede cambiar tras restaurar o emitir
+  otra contraseña. Emitir otra contraseña invalida la anterior. Los campos
+  `secret_salt`/`secret_verifier` de dispositivos de versiones anteriores ya
+  no bloquean la emisión; no es necesario borrar el registro de cuentas.
 - `POST /title/transfer`: formulario con `password` y `secret_key`; devuelve
   `terminal_id` nuevo y `save_data`. Aquí `secret_key` es la clave propia de la
   instalación destino, no la clave anterior ni una segunda contraseña. Una

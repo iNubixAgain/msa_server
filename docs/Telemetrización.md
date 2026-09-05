@@ -114,7 +114,7 @@ excepciones mixtas se detallan en la misma celda.
 | `medal_shop` | `buy`, `prepare`, `top` | **G**, fallback genérico. |
 | `merchant_of_death` | `buy`, `top`, `update` | **G**, fallback genérico. |
 | `msp_shop` | `buy`, `top` | **G**, fallback genérico. |
-| `mypage` | `add_black_list`, `buy_user_lv`, `chat`, `get_message_info` | **F** para mensajes/chat/lista negra mediante `SocialController`; `buy_user_lv` es **G**. |
+| `mypage` | `add_black_list`, `buy_user_lv`, `chat`, `get_message_info` | **F** para mensajes/chat/lista negra mediante `SocialController`; marcas nativas por canal corregidas el 5/9/2026, pendientes de validación visual; `buy_user_lv` es **G**. |
 | `normal_shop` | `buy`, `top`, `update` | **G**, fallback genérico. |
 | `off_1on1` | `battle_lose`, `battle_start`, `battle_win`, `get_enemy`, `ranking`, `reset_chance`, `reset_top`, `set_defence_deck`, `top` | **F/P**, `BattleController`; escalera, rival, mazo e historial; economía parcial. |
 | `off_1on1_btl_shop` | `buy`, `top`, `update` | **P**, tienda vacía. |
@@ -288,3 +288,93 @@ Para validar una ruta al implementarla se debe registrar, como mínimo:
    base de datos ni claves foráneas que impidan referencias rotas.
 5. La validación final de online requiere dispositivos y Photon; las pruebas
    HTTP únicamente cubren coordinación y forma de respuesta.
+
+## Special Ops y avisos nativos: rastreo del 5/9/2026
+
+Evidencia estática del `libAppMain.so` ARM64 del workspace, mediante
+`tools/analyze_online_elf.py` (herramienta privada). Las direcciones siguientes
+son virtuales de ese binario. No equivalen a una captura en dispositivo.
+
+### Special Ops: cooperativo de gremio
+
+`SceneOps::InitSpecialOps` (0x16b8f58) consulta
+`GuildMemberCoopBattleAccessor`: etapas, jugadores, estados y tiempo restante.
+`SceneWorldMap::checkSpecialOps` (0x16e32ec) consulta el evento cooperativo del
+usuario. **No corresponde a Extra Ops/Marathon**; publicar un evento Marathon
+no implementa esta modalidad.
+
+| Solicitud nativa | Entrada específica | Respuesta consumida |
+| --- | --- | --- |
+| `/guild_coop/top` | `coop_id`, `ignore_error` | `guild`, `info`, `rental_soldier` |
+| `/guild_coop/member_coop_request` | `member[]` | `info` |
+| `/guild_coop/stage_keep` | `coop_id`, `stage_id` | `info` |
+| `/guild_coop/member_coop_battle_start` | `coop_id`, `stage_id`, `items[]`, `soldier_user_id`, `soldier_unit_id`, `soldier_unit_level`, `cover`, `deck_no`, `unit_ids[]`, `unit_level[]` | `enemy_data` (cadena), `relief_supplies_contents` |
+| `/guild_coop/member_coop_battle_end` | `coop_id`, `stage_id`, `enemy_data`, `eagle_eye`, `hawk_eye` | `user`, `reward` (arreglo), `rental_soldier` |
+
+`parseGuildMemberCoopBattle` (0x13b75e8) requiere en `info`:
+
+- `event`: fecha fin, convertida a `DateTime`.
+- `help_remain`: número de ayudas disponibles.
+- `person`: arreglo de perfiles de ayudantes con contrato `parsePerson`.
+- `playable`: indicador de disponibilidad.
+- `stage`: arreglo de objetos con `stage_id`, `player` (arreglo de perfiles),
+  `state` y `rest_time` (fecha de liberación).
+
+El menú publica además `guild_member_coop_btl_event` y
+`guild_member_coop_btl_identifier`. Actualmente el servidor entrega la hora
+actual e ID cero y **carece de controlador `guild_coop`**. Por tanto no hay
+operación activa, reserva de etapas ni combate cooperativo reproducible.
+`GuildCoop_MemberCoopBattleStart::extractResponseJson` (0x1433314) pasa la
+cadena `enemy_data` a `EnemyContext::setData`; `getParamList` (0x1338c34)
+separa y convierte parámetros numéricos. No basta responder `{}` o un JSON
+arbitrario para crear enemigos.
+
+Para implementarlo queda resolver la generación de ese contexto enemigo y
+su relación exacta con los maestros de etapas; después persistir operaciones,
+participantes autorizados, reservas con vencimiento y resultados idempotentes.
+La relación genérica con maestros de gremio indicada antes en este informe
+no demuestra por sí sola qué fila genera cada etapa de Special Ops. Este
+rastreo no habilita la modalidad ni certifica un combate en dispositivo.
+
+### Avisos de Chat y otros iconos
+
+`parseMessageLast` (0x13bdec8) exige **un objeto de cuatro cadenas**:
+
+```json
+{"last_message_date":{"world":"","guild":"","personal":"","system":""}}
+```
+
+A pesar del nombre, son marcas opacas: `MyPageUtility::isNewMessageFlag`
+(0x1367490) las compara por `strcmp` con el respaldo local.
+`clearNewMessageFlag` (0x1367560) copia la marca actual al respaldo. El
+servidor debe mantenerlas estables entre consultas y cambiarlas cuando llega
+un mensaje visible. La lectura local de cada canal controla el apagado del
+aviso; no se necesita enviar un campo inventado `exclamation`.
+
+Se corrigieron `/top_menu/top`, `/mypage/get_message_info`, `/mypage/chat` y
+`/guild_battle/top` para devolver este contrato. Se usan IDs persistidos de
+mensajes entrantes, filtrando remitente propio, destinatario, lista negra y
+gremio. Las invitaciones y solicitudes existentes viajan por su canal privado
+o de gremio y actualizan su marca. `system` queda vacío porque el servidor
+no implementa un canal 4. El buzón mantiene un estado de lectura independiente.
+No hay push instantáneo del servidor: la marca se actualiza cuando el cliente
+consulta los endpoints correspondientes.
+
+| Aviso | Fuente nativa comprobada | Situación |
+| --- | --- | --- |
+| Chat mundial, gremio y privado | `last_message_date.world/guild/personal` | Contrato corregido; pendiente ver icono y apagado en dispositivo |
+| Buzón | `top_menu.unread_mail` | Ya refleja notificaciones informativas persistidas |
+| Novedades de eventos | `top_menu.unread_event` | Continúa en cero; falta estado de novedades y lectura de eventos |
+| Crank gratuito | `top_menu.is_free_gacha_play` | Continúa en cero; falta elegibilidad de tirada gratuita autoritativa |
+| Misiones y diarias | `is_quest_reward`, `is_daily_quest_reward`, `is_daily_quest_achieved` | Continúan en cero; falta progreso/recompensa reclamable |
+| Oferta diaria | `is_available_daily_sale_flag` | Continúa en cero; falta disponibilidad comercial real |
+| Exploración terminada | `SearchUtility::isFinishedSearching` llamado desde `MenuButton_ExclamCheck` | Depende de la exploración; sus endpoints aún son parciales |
+| Nuevo modo, historias, eventos y ofertas | `TopMenuUtility::isUpdateMark` y respaldo local | Combinan estado local, nivel y contenido; no existe un único interruptor servidor |
+
+`parseTopMenu` confirma los nombres de los indicadores anteriores;
+`SceneMainMenu::MenuButton_ExclamCheck` (0x1618e88) confirma las comprobaciones
+de exploración, nivel, historia y marcas locales. Poner todos los indicadores
+a uno produciría avisos de recompensas o contenido no disponible. La
+reactivación completa de esos indicadores sigue pendiente de implementar
+sus condiciones de negocio; únicamente las marcas sociales se corrigieron
+en esta intervención.
