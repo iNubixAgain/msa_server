@@ -42,17 +42,28 @@ class ModularServerTests(unittest.TestCase):
         backup = base64.b64encode(b"opaque").decode()
         self.payload("/setting/upload_save_data", "concurrent-owner", {"save_data": backup})
         password = self.payload("/title/takeover", "concurrent-owner", {"secret_key": "key"})["password"]
-        fields = {"password": password, "secret_key": "key"}
+        fields_by_device = {
+            "target-a": {"password": password, "secret_key": "target-key-a"},
+            "target-b": {"password": password, "secret_key": "target-key-b"},
+        }
         with ThreadPoolExecutor(max_workers=2) as pool:
             results = list(pool.map(lambda device: self.raw_payload(
-                "/title/transfer", device, fields), ["target-a", "target-b"]))
+                "/title/transfer", device, fields_by_device[device]),
+                ["target-a", "target-b"]))
         winners = [r for r in results if "terminal_id" in r]
         self.assertEqual(len(winners), 1)
         token = winners[0]["terminal_id"]
-        password2 = self.payload("/title/takeover", token, {"secret_key": "key2"})["password"]
-        self.payload("/title/transfer", "target-c", {"password": password2, "secret_key": "key2"})
+        winner_key = "target-key-a" if winners[0] is results[0] else "target-key-b"
+        password2 = self.payload("/title/takeover", token, {
+            "secret_key": winner_key,
+        })["password"]
+        self.payload("/title/transfer", "target-c", {
+            "password": password2, "secret_key": "target-key-c",
+        })
         for destination in ("target-a", "target-b"):
-            rejected = self.raw_payload("/title/transfer", destination, fields)
+            rejected = self.raw_payload("/title/transfer", destination, {
+                "password": password, "secret_key": "another-target-key",
+            })
             self.assertNotEqual(rejected["response"]["error_code"], 0)
         self.assertNotEqual(self.raw_payload("/title/login", token)["response"]["error_code"], 0)
 
@@ -83,12 +94,12 @@ class ModularServerTests(unittest.TestCase):
         password = self.payload("/title/takeover", "transfer-old", {
             "secret_key": "secret-test",
         })["password"]
-        fields = {"password": password, "secret_key": "secret-test"}
-        result = self.payload("/title/transfer", "transfer-new", fields)
+        fields = {"password": password, "secret_key": "new-device-secret"}
+        result = self.payload("/title/transfer", None, fields)
         self.assertEqual(result["save_data"], backup)
         token = result["terminal_id"]
         self.assertEqual(len(token), 32)
-        retry = self.payload("/title/transfer", "transfer-new", fields)
+        retry = self.payload("/title/transfer", None, fields)
         self.assertEqual(retry["terminal_id"], token)
         login = self.payload("/title/login", token)
         self.assertEqual(login["user"]["open_id"], original)
@@ -100,10 +111,12 @@ class ModularServerTests(unittest.TestCase):
                     "name": "STOLEN", "save_data": backup,
                 })
                 self.assertNotEqual(denied["response"]["error_code"], 0)
-        denied = self.raw_payload("/title/transfer", "third-device", fields)
+        denied = self.raw_payload("/title/transfer", "third-device", {
+            "password": password, "secret_key": "third-device-secret",
+        })
         self.assertNotEqual(denied["response"]["error_code"], 0)
         registry = (self.isolated_data / "accounts.json").read_text()
-        for secret in (password, "secret-test", token):
+        for secret in (password, "secret-test", "new-device-secret", token):
             self.assertNotIn(secret, registry)
         # Registry is reloaded from disk; losing process caches cannot revive A.
         accounts._REQUEST_LOCKS.clear()
@@ -115,16 +128,26 @@ class ModularServerTests(unittest.TestCase):
         self.assertNotEqual(missing["response"]["error_code"], 0)
         self.payload("/setting/upload_save_data", "transfer-a", {"save_data": backup})
         password = self.payload("/title/takeover", "transfer-a", {"secret_key": "key"})["password"]
-        wrong = self.raw_payload("/title/transfer", "transfer-b", {
-            "password": password, "secret_key": "wrong",
-        })
-        self.assertNotEqual(wrong["response"]["error_code"], 0)
         self.payload("/online_1on1/create_or_enter_room", "transfer-a", {})
         blocked = self.raw_payload("/title/transfer", "transfer-b", {
-            "password": password, "secret_key": "key",
+            "password": password, "secret_key": "destination-key",
         })
         self.assertEqual(blocked["response"]["error_code"], 409)
         self.payload("/title/login", "transfer-a")
+
+    def test_takeover_authenticates_the_current_device_secret(self):
+        backup = base64.b64encode(b"opaque backup").decode()
+        self.payload("/setting/upload_save_data", "source-device", {
+            "save_data": backup,
+        })
+        first = self.payload("/title/takeover", "source-device", {
+            "secret_key": "source-local-secret",
+        })
+        denied = self.raw_payload("/title/takeover", "source-device", {
+            "secret_key": "different-device-secret",
+        })
+        self.assertEqual(denied["response"]["error_code"], 10103001)
+        self.assertIn("password", first)
 
     def test_transfer_secrets_are_not_captured_and_backup_is_validated(self):
         backup = base64.b64encode(b"private native backup").decode()
@@ -199,16 +222,16 @@ class ModularServerTests(unittest.TestCase):
         server.BATTLE_TACTICS = self.old_battle_tactics
         self.temp.cleanup()
 
-    def payload(self, path: str, terminal: str = "device-a",
+    def payload(self, path: str, terminal: str | None = "device-a",
                 fields: dict | None = None) -> dict:
         payload = self.raw_payload(path, terminal, fields)
         self.assertEqual(payload.get("response", {}).get("error_code"), 0)
         return payload
 
-    def raw_payload(self, path: str, terminal: str = "device-a",
+    def raw_payload(self, path: str, terminal: str | None = "device-a",
                     fields: dict | None = None) -> dict:
         data = None
-        headers = {"terminal_id": terminal}
+        headers = {} if terminal is None else {"terminal_id": terminal}
         if fields is not None:
             data = urllib.parse.urlencode(fields, doseq=True).encode()
             headers["Content-Type"] = "application/x-www-form-urlencoded"

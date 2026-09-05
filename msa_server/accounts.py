@@ -144,22 +144,39 @@ def _verifier(secret, salt):
                           n=16384, r=8, p=1).hex()
 
 
+def _bind_or_verify_secret(device: dict, secret: str) -> None:
+    """Bind legacy devices once; afterwards authenticate their local key."""
+    salt = device.get("secret_salt")
+    verifier = device.get("secret_verifier")
+    if salt is None and verifier is None:
+        salt = secrets.token_hex(16)
+        device["secret_salt"] = salt
+        device["secret_verifier"] = _verifier(secret, salt)
+        return
+    if (not isinstance(salt, str) or not isinstance(verifier, str)
+            or not hmac.compare_digest(_verifier(secret, salt), verifier)):
+        raise AccountError(10103001)
+
+
 def issue(headers, client, params):
-    if not credential(headers):
+    device_key = credential(headers)
+    if not device_key:
         raise AccountError()
     secret = _field(params, "secret_key")
     _backup(client)
     password = secrets.token_hex(8)
-    salt = secrets.token_hex(16)
-    verifier = _verifier(secret, salt)
     with _LOCK:
         state = _load()
+        device = state["devices"].get(device_key)
+        if (device is None or not device.get("active")
+                or device.get("account") != client):
+            raise AccountError()
+        _bind_or_verify_secret(device, secret)
         now = time.time()
         state["grants"] = {key: value for key, value in state["grants"].items()
                            if value["account"] != client and value["expires"] > now}
         state["grants"][hashlib.sha256(password.encode()).hexdigest()] = {
-            "account": client, "salt": salt, "verifier": verifier,
-            "expires": now + TRANSFER_TTL, "used": False,
+            "account": client, "expires": now + TRANSFER_TTL, "used": False,
         }
         _save(state)
     return {"password": password}
@@ -179,11 +196,10 @@ def _rate_limit(state, source_ip):
 
 
 def transfer(headers, params, source_ip, busy):
-    destination = credential(headers)
-    if not destination:
-        raise AccountError(400)
     password = _field(params, "password")
-    secret = _field(params, "secret_key")
+    # This is the destination installation's own key, not the source key.
+    # A fresh client legitimately has no terminal_id until this call succeeds.
+    destination_secret = _field(params, "secret_key")
     key = hashlib.sha256(password.encode()).hexdigest()
     with _LOCK:
         state = _load()
@@ -193,25 +209,32 @@ def transfer(headers, params, source_ip, busy):
             raise AccountError(10103001)
         _rate_limit(state, "grant:" + key)
         account = grant["account"]
-        salt, verifier = grant["salt"], grant["verifier"]
-    if not hmac.compare_digest(_verifier(secret, salt), verifier):
-        raise AccountError(10103001)
     with _request_lock(account), _LOCK:
         state = _load()
         grant = state["grants"].get(key)
         if grant is None or grant["expires"] <= time.time():
             raise AccountError(10103001)
         if grant["used"]:
-            if (grant["destination"] != destination
-                    or grant["retry_until"] <= time.time()):
+            salt = grant.get("destination_salt", "")
+            verifier = grant.get("destination_verifier", "")
+            if (grant["retry_until"] <= time.time()
+                    or not salt or not verifier
+                    or not hmac.compare_digest(
+                        _verifier(destination_secret, salt), verifier)):
                 raise AccountError(10103001)
         else:
             if busy(account):
                 raise AccountError(409)
             _backup(account)
-            grant.update(used=True, destination=destination,
-                         retry_until=time.time() + RETRY_TTL,
-                         nonce=secrets.token_hex(16))
+            destination_salt = secrets.token_hex(16)
+            grant.update(
+                used=True,
+                destination_salt=destination_salt,
+                destination_verifier=_verifier(
+                    destination_secret, destination_salt),
+                retry_until=time.time() + RETRY_TTL,
+                nonce=secrets.token_hex(16),
+            )
             for device in state["devices"].values():
                 if device["account"] == account:
                     device["active"] = False
@@ -223,7 +246,12 @@ def transfer(headers, params, source_ip, busy):
         if grant["used"] and token_key in state["devices"]:
             if not state["devices"][token_key]["active"]:
                 raise AccountError(10103001)
-        state["devices"][token_key] = {"account": account, "active": True}
+        state["devices"][token_key] = {
+            "account": account,
+            "active": True,
+            "secret_salt": grant["destination_salt"],
+            "secret_verifier": grant["destination_verifier"],
+        }
         backup = _backup(account)
         _save(state)
     return {"terminal_id": token, "save_data": backup}

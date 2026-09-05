@@ -179,6 +179,10 @@ class Handler(BaseHTTPRequestHandler):
         try:
             self.route(persist=persist)
         except accounts.AccountError as exc:
+            logging.warning(
+                "OPERACION_CUENTA rechazada ruta=%s codigo=%s desde=%s",
+                urlsplit(self.path).path, exc.code, self.client_address[0],
+            )
             payload = {"response": {**response_clock(), "error_code": exc.code}}
             self.send_bytes(json.dumps(payload).encode())
         except RequestBodyTooLarge as exc:

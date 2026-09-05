@@ -79,18 +79,21 @@ El servidor implementa el contrato de MSA 7.13.0 en `msa_server/accounts.py`:
   conserva exactamente el texto recibido, con límite de 4 MiB y validación
   del envoltorio Base64; no se interpreta el formato binario interno.
 - `POST /title/takeover`: formulario con `secret_key`; requiere un respaldo
-  previo y devuelve `password`. Emitir otra contraseña invalida la anterior.
+  previo y devuelve `password`. `secret_key` autentica la instalación actual;
+  en cuentas antiguas queda vinculada en el primer uso. Emitir otra contraseña
+  invalida la anterior.
 - `POST /title/transfer`: formulario con `password` y `secret_key`; devuelve
-  `terminal_id` nuevo y `save_data`. El dispositivo destino debe enviar su
-  credencial de dispositivo (`terminal_id` o cookie), incluso si es una
-  cuenta recién registrada. No se fusiona su progreso anterior.
+  `terminal_id` nuevo y `save_data`. Aquí `secret_key` es la clave propia de la
+  instalación destino, no la clave anterior ni una segunda contraseña. Una
+  instalación nueva puede llamar sin `terminal_id`; el servidor lo emite al
+  completar el traslado. No se fusiona su progreso anterior.
 
 Estos endpoints no aceptan secretos en la URL. La contraseña vence a las
-24 horas y se consume una sola vez; durante 10 minutos el mismo dispositivo
-destino puede repetir la solicitud si perdió la respuesta. Hay un límite de
-5 intentos por minuto por IP y por contraseña existente. La clave secreta se
-verifica mediante scrypt con sal; las contraseñas y credenciales de dispositivo
-se indexan mediante hashes. Los cuerpos sensibles se excluyen de la captura
+24 horas y se consume una sola vez; durante 10 minutos la misma clave del
+dispositivo destino puede repetir la solicitud si perdió la respuesta. Hay un
+límite de 5 intentos por minuto por IP y por contraseña existente. La clave
+secreta se verifica mediante scrypt con sal; las contraseñas y credenciales de
+dispositivo se indexan mediante hashes. Los cuerpos sensibles se excluyen de la captura
 diagnóstica y las URLs completas no se escriben en el registro HTTP.
 
 La transferencia conserva el identificador interno, el ID público y los
