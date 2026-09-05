@@ -5,6 +5,7 @@
 !/.gitignore
 !/README.md
 !/server.py
+!/admin.py
 !/start.bat
 !/docs/
 /docs/*
@@ -27,6 +28,7 @@
 !/tests/server_fixtures.py
 !/tests/test_modular_server.py
 !/tests/test_clock.py
+!/tests/test_moderation.py
 !/tests/test_diagnostics.py
 !/tests/test_photon.py
 !/tests/test_pvp_history.py

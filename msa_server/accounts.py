@@ -15,7 +15,7 @@ import threading
 import time
 from contextlib import contextmanager
 
-from . import storage
+from . import storage, moderation
 
 _LOCK = threading.RLock()
 _REQUEST_LOCKS: dict[str, threading.RLock] = {}
@@ -69,7 +69,9 @@ def _save(state: dict) -> None:
 def lookup(headers) -> str | None:
     key = credential(headers)
     with _LOCK:
-        device = _load()["devices"].get(key)
+        state = _load()
+        moderation.check(headers, state)
+        device = state["devices"].get(key)
         if device is not None:
             if not device["active"]:
                 raise AccountError()
@@ -81,6 +83,7 @@ def bind_legacy(headers, client: str) -> str:
     key = credential(headers)
     with _LOCK:
         state = _load()
+        moderation.check(headers, state, client)
         if key in state["devices"]:
             device = state["devices"][key]
             if not device["active"]:
@@ -102,6 +105,8 @@ def _request_lock(client):
 @contextmanager
 def request_guard(headers, client):
     with _request_lock(client):
+        with _LOCK:
+            moderation.check(headers, _load(), client)
         resolved = lookup(headers)
         if resolved is not None and resolved != client:
             raise AccountError()
@@ -146,6 +151,8 @@ def _verifier(secret, salt):
 
 
 def issue(headers, client, params):
+    with _LOCK:
+        moderation.check(headers, _load(), client)
     device_key = credential(headers)
     if not device_key:
         raise AccountError()
@@ -188,6 +195,8 @@ def _rate_limit(state, source_ip):
 
 
 def transfer(headers, params, source_ip, busy):
+    with _LOCK:
+        moderation.check(headers, _load())
     password = _field(params, "password")
     # This is the destination installation's own key, not the source key.
     # A fresh client legitimately has no terminal_id until this call succeeds.
@@ -203,6 +212,7 @@ def transfer(headers, params, source_ip, busy):
         account = grant["account"]
     with _request_lock(account), _LOCK:
         state = _load()
+        moderation.check(headers, state, account)
         grant = state["grants"].get(key)
         if grant is None:
             raise AccountError(10103001)

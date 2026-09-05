@@ -36,6 +36,25 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 class ModularServerTests(unittest.TestCase):
+    def test_moderation_blocks_http_without_affecting_same_ip_player(self):
+        from msa_server import moderation
+        player = self.payload("/title/login", "banned-device")["user"]["open_id"]
+        other = self.payload("/title/login", "innocent-device")["user"]["open_id"]
+        self.assertNotEqual(player, other)
+        moderation.administer("ban", player, "test", "tests")
+        for path, fields in (("/title/login", None), ("/title/regist", {}),
+                             ("/top_menu/top", None), ("/friend/top", None),
+                             ("/mypage/chat", {"message": "blocked", "message_type": 1}),
+                             ("/title/transfer", {"password": "invalid", "secret_key": "key"})):
+            with self.subTest(path=path):
+                self.assertEqual(self.raw_payload(path, "banned-device", fields)
+                                 ["response"]["error_code"], 401)
+        self.assertEqual(self.payload("/title/login", "innocent-device")
+                         ["user"]["open_id"], other)
+        moderation.administer("unban", player, "review", "tests")
+        self.assertEqual(self.payload("/title/login", "banned-device")
+                         ["user"]["open_id"], player)
+
     def test_special_ops_entry_has_native_unavailable_contract(self):
         response = self.payload("/guild_coop/top", "coop-entry", {"coop_id": 0})
         self.assertIn("guild", response)

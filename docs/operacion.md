@@ -150,6 +150,59 @@ conexión TLS. Si un cliente intercepta estos RPC en su servidor offline, debe
 redirigirlos al backend para beneficiarse de la revocación. No se ha compilado
 ni instalado un APK como parte de esta implementación.
 
+## Baneos locales de cuentas e instalaciones conocidas
+
+Desde la carpeta del servidor, usar el ID público exacto `msa-...` del jugador:
+
+```powershell
+python admin.py status msa-ID_DEL_JUGADOR
+python admin.py ban msa-ID_DEL_JUGADOR --reason "Trampas verificadas"
+python admin.py list
+python admin.py unban msa-ID_DEL_JUGADOR --reason "Revisión de la sanción"
+```
+
+`--operator "Nombre"` permite identificar al moderador; por defecto se registra
+el usuario del sistema operativo. Solo quien tenga acceso local al servidor
+debe ejecutar estos comandos. No hay API pública de administración.
+
+La sanción es permanente hasta `unban`. Bloquea la cuenta y todas sus
+credenciales registradas, incluso las antiguas revocadas, comprobando tanto
+`terminal_id` como la cookie. Rechaza las siguientes peticiones HTTP y las
+transferencias hacia o desde una cuenta bloqueada. No borra progreso ni cambia
+la contraseña: al desbanear se recupera el acceso con las credenciales que
+seguían vigentes. No se reactivan terminales revocados por una transferencia.
+Las salas HTTP pendientes con un participante baneado se retiran en la
+siguiente consulta de matchmaking, sin sancionar a sus otros participantes.
+Las salas marcadas como iniciadas conservan su caducidad normal.
+
+No se banea por IP, modelo, sistema operativo ni huellas compartidas. Presentar
+una cookie bloqueada junto a otra credencial rechaza esa petición, pero no
+transfiere la sanción a la otra cuenta. No se propagan sanciones entre cuentas
+por haber usado supuestamente el mismo teléfono. Solo se aceptan objetivos
+con credenciales registradas (o una sanción previa); un ID desconocido falla
+sin crear un baneo. Revisar siempre el ID y la evidencia antes de sancionar.
+
+**Límite:** no es un bloqueo del hardware. Borrar datos, reinstalar o falsificar
+identificadores puede permitir crear una instalación nueva. Tampoco expulsa
+una conexión Photon ya abierta, cancela una operación HTTP que ya pasó la
+comprobación ni impide jugar offline. El APK puede mostrar su error genérico
+de conexión (`error_code: 401`), no un mensaje personalizado de baneo.
+
+El estado y el historial administrativo se guardan en el archivo privado
+`server_data/bans.json`, mediante reemplazo atómico y bloqueo entre procesos
+administrativos. El CLI no escribe `accounts.json`. Los cambios se leen en
+las peticiones sin reiniciar; para cargar inicialmente este nuevo código sí
+es necesario reiniciar el backend. No requiere recompilar el APK.
+
+Respaldar todo `server_data/` coherentemente y restringir sus permisos al
+operador del servidor. No editar ni borrar `bans.json`: eliminarlo quita las
+sanciones; un archivo corrupto rechaza peticiones hasta restaurar una copia
+válida. Un error de bloqueo administrativo exige reintentar cuando termine el
+otro comando. No publicar estos datos ni su historial. Las pruebas usan
+directorios temporales; queda validar visualmente el rechazo y la recuperación
+en dos dispositivos reales, así como el comportamiento de una partida Photon
+ya iniciada.
+
 ## Publicar solo el servidor
 
 `.gitignore` usa una lista permitida: todo se ignora primero y después solo se

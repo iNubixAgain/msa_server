@@ -7,6 +7,8 @@ import threading
 import time
 import uuid
 
+from . import moderation
+
 
 class OnlineMatchmaker:
     """Emparejamiento HTTP que entrega una misma sala Photon a 2 o 4 clientes."""
@@ -19,8 +21,12 @@ class OnlineMatchmaker:
 
     def _prune(self) -> None:
         now = time.monotonic()
+        banned = {account for account, record in moderation.load()["bans"].items()
+                  if record["active"]}
         expired = [room_id for room_id, room in self.rooms_by_id.items()
-                   if now - room.get("last_activity", room["created"]) > 600]
+                   if now - room.get("last_activity", room["created"]) > 600
+                   or (room.get("completed") is None
+                       and banned.intersection(room["clients"]))]
         for room_id in expired:
             room = self.rooms_by_id.pop(room_id)
             if self.waiting.get(room["mode"]) is room:
@@ -29,6 +35,8 @@ class OnlineMatchmaker:
                 key = (room["mode"], participant)
                 if self.client_rooms.get(key) is room:
                     self.client_rooms.pop(key, None)
+        if expired:
+            self.condition.notify_all()
 
     def account_busy(self, client: str) -> bool:
         """Conservatively refuse transfers while a room may still use Photon."""
