@@ -21,6 +21,14 @@ from .users import ok_payload, user_payload
 
 
 TACTICS_SEASON = 23
+# RoomTactics calls BattleTacticsUtility::getCustomizeChargeMSHouLv, which
+# resolves the season again from DateTimeUtility::getNowLocal. Outside the
+# bundled January 2023 season it obtains season 0 and dereferences a null
+# BattleTacticsUnitAccessor. The native common response parser updates that
+# clock BEFORE constructing the battle. Supply a date safely inside season 23
+# and its 11:00 term only on battle_start; subsequent ordinary responses restore
+# real time. This does not alter the host clock or persisted event timestamps.
+TACTICS_BATTLE_COMPAT_TIME = "2023-01-05 11:15:00"
 TACTICS_UNIT_MIN = 939
 TACTICS_UNIT_MAX = 1152
 TACTICS_NORMAL_UNIT_VERSION = 5
@@ -572,7 +580,11 @@ class BattleTacticsController:
             )
             return {
                 "player_info": players,
-                "response": ok,
+                "response": {
+                    **ok,
+                    "now_time": TACTICS_BATTLE_COMPAT_TIME,
+                    "server_time": TACTICS_BATTLE_COMPAT_TIME,
+                },
             }
 
         if action == "battle_end":

@@ -36,6 +36,37 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 class ModularServerTests(unittest.TestCase):
+    def test_tactics_battle_start_supplies_native_season_clock_and_restores_real_time(self):
+        from msa_server.battle_tactics import TACTICS_BATTLE_COMPAT_TIME
+        from datetime import datetime, timedelta
+
+        real_clock = {"error_code": 0, "now_time": "2026-09-05 13:00:00",
+                      "server_time": "2026-09-05 13:00:00"}
+        with patch.object(server, "response_clock", return_value=real_clock):
+            room = self.payload("/battle_tactics/create_or_enter_room", "compat-a", {})["room_id"]
+            self.payload("/battle_tactics/create_or_enter_room", "compat-b", {})
+            for terminal in ("compat-a", "compat-b"):
+                self.payload("/battle_tactics/decide_room", terminal, {"room_id": room})
+                start = self.payload("/battle_tactics/battle_start", terminal, {"room_id": room})
+                self.assertEqual(len(start["player_info"]), 2)
+                self.assertEqual(start["response"]["now_time"], TACTICS_BATTLE_COMPAT_TIME)
+                self.assertEqual(start["response"]["server_time"], TACTICS_BATTLE_COMPAT_TIME)
+                # The client's getNowLocal adds device elapsed time after the
+                # response. Even a slow transition remains inside season 23.
+                native_now = datetime.fromisoformat(start["response"]["now_time"])
+                self.assertGreaterEqual(native_now, datetime(2023, 1, 2))
+                self.assertLess(native_now + timedelta(minutes=30), datetime(2023, 1, 12, 15, 59, 59))
+            # Copying the common response must not change the shared real clock.
+            self.assertEqual(real_clock["now_time"], "2026-09-05 13:00:00")
+            self.assertEqual(self.payload("/battle_tactics/top", "compat-other")["response"], real_clock)
+            end = self.payload("/battle_tactics/battle_end", "compat-a",
+                               {"room_id": room, "battle_result": 1})
+            self.assertEqual(end["response"], real_clock)
+            self.assertEqual(end["battle_tactics"]["battle_num"], 1)
+            history = self.payload("/battle_tactics/battle_history", "compat-a")
+            self.assertNotIn("2023-01-05", json.dumps(history))
+            self.assertEqual(self.payload("/top_menu/top", "compat-a")["response"], real_clock)
+
     def test_moderation_blocks_http_without_affecting_same_ip_player(self):
         from msa_server import moderation
         player = self.payload("/title/login", "banned-device")["user"]["open_id"]

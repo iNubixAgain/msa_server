@@ -184,7 +184,7 @@ blob maestro. Para evitar repetir decenas de nombres se usan estos conjuntos:
 | `build_up`, `unit_up` | **UNIDAD**, `m_customize_affiliation`, `m_unit_make` | `user_units.json`, `user_deck.json`, perfil | Dependencia fuerte por IDs; escritura dinámica confirmada solo en operaciones indicadas arriba. |
 | `gacha` | `m_gacha*`, `m_banner`, `m_schedule`, **UNIDAD** | inventario y respuesta generada | Maestros definen línea/precio; backend decide resultado dinámico. |
 | `arena` | `m_arena_class`, `m_arena_honor`, `m_arena_order_reward`, `m_arena_rank_reward`, `m_arena_reward`, `m_arena_season`, `m_arena_setting`, **BATALLA** | `arena.json`, salas en memoria | Temporada y reglas locales + estado/rival remoto. |
-| `battle_tactics` | `m_battle_tactics_*`, **UNIDAD**, `m_schedule` | `battle_tactics.json`, salas en memoria | Temporada, Draft, tienda y recompensas locales + estado remoto. |
+| `battle_tactics` | `m_battle_tactics_*`, **UNIDAD**, `m_schedule` | `battle_tactics.json`, salas en memoria | Temporada, Draft, tienda y recompensas locales + estado remoto. `battle_start` usa el reloj de compatibilidad descrito abajo. |
 | `online_1on1`, `online_2on2` | `m_online_class`, `m_ranking_reward`, **BATALLA** | `online.json`, mazos, matchmaking en memoria, Photon UDP | Clase/reglas locales + participantes e historial remotos. |
 | `friend_online_1on1`, `guild_online_2on2` | **BATALLA** y datos visuales sociales | `social.json`, `guilds.json`, salas en memoria, Photon UDP | No hay tabla maestra de sala; el backend aporta jugadores y relay. |
 | `off_1on1`, `off_team` | `m_period_battle`, `m_period_battle_ranking_reward`, `m_off_reset_time`, **BATALLA** | estado y escalera JSON por modo | Reglas locales + ranking, rival y mazos remotos. |
@@ -393,3 +393,60 @@ Se preservan los datos existentes; una fecha heredada sin epoch se interpreta
 como UTC. Si ambos valores son inválidos se omite esa fila con advertencia
 en el log, sin asignarle una fecha ficticia. La zona visible final depende
 del tratamiento de `DateTime` en la interfaz del dispositivo.
+
+## Battle Tactics: reloj requerido al construir el combate (7.13.0)
+
+`/battle_tactics/battle_start` entrega dos `player_info`, cada uno con diez
+`unit_param`, diez `deck_attribute`, dos `supporter_param` y los demás campos
+del jugador online. Proceden del perfil y Draft persistidos. Además de esos
+datos, el constructor nativo vuelve a resolver la temporada mediante la fecha.
+
+Análisis estático de `libAppMain.so` local; direcciones virtuales ARM64:
+
+| Función / dirección | Dependencia y comportamiento observado |
+| --- | --- |
+| `BattleTactics_BattleStart::extractResponseJson`, `0x14079c4` | Lee `player_info` mediante el parser de jugadores online. |
+| `JsonParseSupporter::parseDateTimeInfo`, `0x13aa8e4` | Sincroniza el reloj de transacción con `response.now_time` y `response.server_time`, guardando además la hora del dispositivo. |
+| `DateTimeUtility::getNowLocal`, `0x1344e04` | Devuelve la hora recibida más el tiempo transcurrido en el dispositivo. |
+| `RoomTactics` constructor, `0xd49f1c` | Construye los mazos y llama a `getCustomizeChargeMSHouLv` para ambos jugadores. |
+| `BattleTacticsUtility::getCustomizeChargeMSHouLv`, `0x1340e98` | Resuelve temporada por fecha y consulta `getUnit(season)` sin comprobar el resultado. |
+| `BattleTacticsUtility::getSeason`, `0x133f39c` | Después de todas las temporadas disponibles devuelve `false` y escribe temporada `0`. |
+| `BattleTacticsTableAccessor::getUnit`, `0x1284200` | La búsqueda fallida deja un accessor con puntero nulo. |
+| `BattleTacticsUnitAccessor::getCustomizeChargeMSHouLv`, `0x1283850` | Desreferencia ese puntero sin comprobarlo (`ldr x8, [x8, #0x17a0]`). |
+
+La misma cadena existe en ARM32: utilidad en `0xf7795c` y getter final en
+`0xedce88`. No se modificaron los binarios. Los parches ya presentes para menú
+y Draft no sustituyen esta búsqueda del combate.
+
+La última fila de `m_battle_tactics_season` es temporada 23, entre
+`2023-01-02 00:00:00` y `2023-01-12 15:59:59`. Su fila en
+`m_battle_tactics_unit` define unidades 939..1152, dos supporters y
+`customize_charge_mshou_lv=10`. Con la fecha actual se obtiene temporada 0,
+que no tiene fila. Es una ruta demostrable de lectura nula; sin tombstone
+no se puede atribuir a ella cada cierre observado en dispositivos.
+
+La adaptación entrega **solo en `battle_start`**:
+
+```json
+"response": {
+  "error_code": 0,
+  "now_time": "2023-01-05 11:15:00",
+  "server_time": "2023-01-05 11:15:00"
+}
+```
+
+Ambos campos coinciden para conservar la conversión local/servidor del cliente.
+La fecha cae dentro de temporada 23 y de la franja 11:00–12:04:59 de
+`m_battle_tactics_setting`, con margen para cargar la batalla. El reloj del
+cliente avanza desde ese instante. Se copia el bloque de respuesta, sin cambiar
+el reloj del host ni el objeto compartido. `battle_end`, el menú y las demás
+peticiones vuelven a entregar la fecha real. Los timestamps persistidos de
+chat, historial y logs conservan su fecha real.
+
+No requiere descargar otras tablas ni recompilar el APK. El reloj sincronizado
+es global dentro del cliente: una petición ajena intercalada puede restaurarlo
+antes de terminar la transición. Queda probar en dos dispositivos la carga de
+unidades, entrada al combate, sincronización Photon, resultados e historial.
+Si aún hay cierre, conservar el tombstone para localizar otra ruta. Las pruebas
+HTTP cubren ambos jugadores, resultado persistido y restauración del reloj;
+no ejecutan el motor nativo ni una partida Photon real.

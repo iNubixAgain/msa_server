@@ -52,7 +52,10 @@ Battle Tactics no se considera actualmente completado en dispositivo. En los
 `decide_room`, entrada a la sala Photon y `/battle_tactics/battle_start` con
 HTTP 200; el proceso cliente se cerró durante la transición al combate y nunca
 envió `/battle_tactics/battle_end`. El contrato automatizado pasa, pero falta
-capturar y corregir el fallo nativo.
+validar en dispositivo la adaptación del reloj de inicio: se identificó una
+búsqueda de temporada por fecha que acaba leyendo un puntero nulo después de
+2023. `battle_start` ahora entrega una fecha de temporada 23; las demás
+respuestas y los registros conservan la fecha real. Véase `Telemetrización.md`.
 
 ## Funciones parciales
 

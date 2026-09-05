@@ -2,11 +2,15 @@
 
 ## Prioridad inmediata
 
-1. **Battle Tactics:** capturar el cierre nativo que ocurre después de
-   `/battle_tactics/battle_start`. Se necesita reproducirlo en dos dispositivos
-   y obtener `logcat`/tombstone antes de cambiar de nuevo el contrato por
-   conjetura. La corrección se considera validada solo cuando ambos clientes
-   llegan al combate y envían `/battle_tactics/battle_end`.
+1. **Battle Tactics:** validar en dos dispositivos la adaptación de reloj de
+   `/battle_tactics/battle_start`. El análisis nativo encontró que el combate
+   resuelve temporada 0 con la fecha actual y desreferencia un accessor nulo;
+   el inicio ahora sincroniza una fecha válida de temporada 23 (ver
+   `Telemetrización.md`). Reiniciar el backend para cargar la corrección;
+   no requiere recompilar el APK. Se considera validada en dispositivo cuando
+   ambos clientes llegan al combate y envían `/battle_tactics/battle_end`.
+   Si persiste el cierre, capturar `logcat`/tombstone y comprobar si otra
+   petición restauró el reloj durante la carga.
 
 ## Validación pendiente en dispositivo
 
