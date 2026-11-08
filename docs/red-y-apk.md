@@ -1,4 +1,4 @@
-﻿# Direcciones HTTP, Photon y APK
+# Direcciones HTTP, Photon y APK
 
 ## Cuatro destinos que deben coincidir
 
@@ -70,8 +70,8 @@ revisado; otras variantes pueden tener rutas y estructuras distintas:
 | lib/arm64-v8a/libAppMain.so | HTTP ASCII y NameServer UTF-32LE, ARM64 |
 | lib/armeabi-v7a/libAppMain.so | Las mismas direcciones, ARM32 |
 | res/xml/network_security_config.xml | Política HTTP y dominio permitido |
-| smali_classes3/com/snkplaymore/android014/offline/OfflineServer.smali | URLs del interceptor, si existe |
-| smali/com/snkplaymore/android014/MainActivity.smali | Arranque del interceptor local, si existe |
+| smali_classes*/<paquete-del-cliente>/offline/OfflineServer.smali | URLs del interceptor, si existe |
+| smali/<paquete-del-cliente>/MainActivity.smali | Arranque del interceptor local, si existe |
 
 Los slots binarios tienen capacidad fija: verifica longitud, terminador NUL,
 valor anterior y ambas arquitecturas. No reemplaces bytes sin conocer el slot

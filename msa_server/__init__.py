@@ -1,2 +1,2 @@
-"""Componentes modulares del backend de Metal Slug Attack."""
+"""Componentes modulares del backend del servidor."""
 

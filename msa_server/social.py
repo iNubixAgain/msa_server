@@ -118,7 +118,7 @@ def _save_message_stores(stores: dict, state: dict) -> None:
         storage.atomic_write(storage.DATA / filename, json.dumps(
             document, ensure_ascii=False, separators=(",", ":")
         ).encode("utf-8"))
-    lines = ["# Chat de Metal Slug Attack", "",
+    lines = ["# Chat del servidor", "",
              "Vista diagnóstica de los almacenes separados de Chat.", ""]
     all_messages = world + private + [
         message for messages in guilds.values() for message in messages

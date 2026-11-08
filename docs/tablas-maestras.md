@@ -12,7 +12,7 @@ de otras ramas no forman parte de esta revisión.
 3. `/title/get_master_table?table[]=NOMBRE` entrega la tabla correspondiente
    en Base64 dentro del contrato JSON. La representación fuente usa archivos
    bajo `server_content/files/`, incluido el nombre canónico por tabla.
-4. Las rutas `/snkp/msatk/prod/pack/0/` y el prefijo legado sirven archivos
+4. Las rutas el prefijo de descargas definido en `msa_server/assets.py` y el prefijo legado sirven archivos
    según su nombre. `/title/get_pack_info` anuncia dónde descargarlos.
 
 Revisar la URL exacta del catálogo y los artefactos que sirven esas rutas;
@@ -58,7 +58,7 @@ revisión mayor que la ya instalada, aunque el contenido vuelva a ser viejo.
 
 En main no existe una política de año máximo: una implementación completa
 necesita también filtrar inventarios, mazos persistidos y batallas. La variante
-privada hasta Nova se explica en [políticas](versiones-y-politicas.md), sin
+privada hasta la unidad de referencia se explica en [políticas](versiones-y-politicas.md), sin
 presentarla como código incluido en este clon.
 
 ## Temporadas y eventos
@@ -70,5 +70,5 @@ Los parches nativos de menú pueden ignorar un horario aunque las tablas estén
 expiradas; bloquear el API y ocultar un botón son trabajos distintos.
 
 Consulta [endpoints](Telemetrización.md) para el contrato histórico de
-Battle Tactics y [estado](estado.md) para la validación pendiente. No se
+modo táctico y [estado](estado.md) para la validación pendiente. No se
 certifica una batalla real por una respuesta HTTP exitosa.

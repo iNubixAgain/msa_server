@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Servidor LAN persistente para el mod offline de Metal Slug Attack."""
+"""Servidor LAN persistente para clientes compatibles."""
 
 from __future__ import annotations
 

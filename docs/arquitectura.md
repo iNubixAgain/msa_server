@@ -30,7 +30,7 @@ rutas locales.
 | `core`, `users`, `profiles`, `decks`, `inventory` | Login, menú, perfil, mazos, unidades y mejoras. |
 | `assets`, `content`, `gameplay` | Tablas maestras, archivos servidos, Story, World Map, prácticas, eventos y tiendas compatibles. |
 | `battle`, `ultimate_mission`, `gacha` | Batalla individual/Team Battle, Ultimate Mission y resultados visuales de Crank. |
-| `matchmaking`, `online`, `arena`, `pvp_history` | Salas públicas 1v1/2v2, Rank Match, rankings e historial PvP. |
+| `matchmaking`, `online`, `arena`, `pvp_history` | Salas públicas 1v1/2v2, modo competitivo, rankings e historial PvP. |
 | `friend_online`, `guild_online` | Salas privadas Friend 1v1 y Guild 2v2. |
 | `social`, `guild`, `notifications`, `news` | Perfiles públicos, amistades, chat, Guild, correo interno y anuncios. |
 | `battle_tactics`, `snatch_wars` | Draft/Tactics y contrato parcial de Snatch Wars. |

@@ -1,4 +1,4 @@
-﻿# Versiones del servidor y políticas de juego
+# Versiones del servidor y políticas de juego
 
 Revisión: 8 de noviembre de 2026. Esta guía separa la capacidad del código de
 la política elegida para un despliegue. La documentación pública no debe hacer
@@ -8,7 +8,7 @@ que un clon de main parezca contener funciones que solo existen en otro paquete.
 | --- | --- |
 | main, base ddbe6e1c | Backend modular, configuración pública histórica, logging activo y supervisor Windows; no incluye roster.py ni mode_availability.py |
 | Workspace local Balance-Test | Cambios sin commit, dirección LAN y módulos/editores adicionales; no se publican por inferencia |
-| VPS_BACKUP privado | Roster hasta Nova, controles de modos, neutralización de buffs y corrección de selector; no es una carpeta del repositorio público |
+| VPS_BACKUP privado | Roster hasta la unidad de referencia, controles de modos, neutralización de buffs y corrección de selector; no es una carpeta del repositorio público |
 
 No copies server_data ni el APK al Git para trasladar una variante. Revisa sus
 módulos, tablas, catálogo, defaults y pruebas como un cambio propio. La
@@ -26,7 +26,7 @@ que se va a desplegar.
 ## Variante histórica del VPS
 
 El corte confirmado por el propietario fue **15 de enero de 2020 inclusive**,
-hasta Nova (Tácticas de Subyugación), ID 1324; no diciembre de 2020. Incluye las
+hasta la unidad de referencia, ID 1324; no diciembre de 2020. Incluye las
 unidades del mismo día. Se eligió una lista explícita desde las fechas de la
 tabla original, no todas las IDs menores que 1324.
 
@@ -39,8 +39,8 @@ corte. La revisión 7131002 y nuevos nombres de caché de seis tablas buscan
 actualizar instalaciones con selectores incompletos. El reporte de usuarios
 que veían solo 2016 no tuvo una causa única confirmada por captura del VPS.
 
-Ese paquete también bloquea Rank Match, Battle Tactics y Extra Ops (United
-Front retirado del menú y rutas rechazadas). Los botones forzados por el APK
+Ese paquete también bloquea modo competitivo, modo táctico y eventos temporales (evento
+cooperativo retirado del menú y rutas rechazadas). Los botones forzados por el APK
 pueden seguir visibles. Online normal 1v1/2v2 permanece independiente.
 Estos bloqueos no están implementados en main ddbe6e1c.
 

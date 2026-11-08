@@ -81,7 +81,7 @@ describen otra revisión y no son el resultado de esta auditoría.
 
 ## Traslado de cuenta entre dispositivos
 
-El servidor implementa el contrato de MSA 7.13.0 en `msa_server/accounts.py`:
+El servidor implementa el contrato de el protocolo compatible en `msa_server/accounts.py`:
 
 - `POST /setting/upload_save_data`: formulario con `save_data` Base64. Se
   conserva exactamente el texto recibido, con límite de 4 MiB y validación
@@ -152,7 +152,7 @@ APK existente ni convierte en HTTPS sus URLs HTTP.
 Las pruebas automatizadas cubren conservación de identidad/perfil, revocación,
 reintentos, concurrencia, expiración, límites, validación y exclusión de
 secretos de diagnósticos. Sus respaldos son fixtures opacos, no partidas
-nativas restauradas. Queda probar en dos dispositivos MSA 7.13.0 la emisión,
+nativas restauradas. Queda probar en dos dispositivos el protocolo compatible la emisión,
 introducción de contraseña, restauración completa, revocación del anterior y
 conexión TLS. Si un cliente intercepta estos RPC en su servidor offline, debe
 redirigirlos al backend para beneficiarse de la revocación. No se ha compilado

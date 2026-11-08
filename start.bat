@@ -4,7 +4,7 @@ set "MSA_PUBLIC_HOST=online.nubix.playit.plus"
 set "MSA_PUBLIC_PORT=51516"
 set "MSA_PORT=42069"
 
-echo Iniciando servidor de Metal Slug Attack...
+echo Iniciando servidor...
 where python.exe >nul 2>nul
 if not errorlevel 1 (
   python server.py

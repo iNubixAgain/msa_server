@@ -124,7 +124,7 @@ def _normalise_battle_tactics(saved) -> dict:
     shop = base.get("shop")
     if isinstance(shop, list):
         # Migracion transparente del formato usado antes de restaurar el
-        # contrato nativo de Metal Slug Attack 7.13.0.
+        # contrato nativo de cliente compatible 7.13.0.
         base["shop"] = {"contents": shop}
     elif not isinstance(shop, dict) or not isinstance(shop.get("contents"), list):
         base["shop"] = {"contents": [dict(item) for item in DEFAULT_SHOP_ITEMS]}

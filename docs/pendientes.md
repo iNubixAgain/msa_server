@@ -12,7 +12,7 @@ con respuesta/captura del VPS; véase [políticas por versión](versiones-y-poli
 
 ## Prioridad inmediata
 
-1. **Battle Tactics:** validar en dos dispositivos la adaptación de reloj de
+1. **modo táctico:** validar en dos dispositivos la adaptación de reloj de
    `/battle_tactics/battle_start`. El análisis nativo encontró que el combate
    resuelve temporada 0 con la fecha actual y desreferencia un accessor nulo;
    el inicio ahora sincroniza una fecha válida de temporada 23 (ver

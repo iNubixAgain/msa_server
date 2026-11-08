@@ -334,7 +334,7 @@ class UserTracker:
         self._entries.append(line)
 
     def _render_content(self) -> str:
-        lines = ["# Registro de Usuarios de Metal Slug Attack", ""]
+        lines = ["# Registro de Usuarios del servidor", ""]
         lines.append("## Batallas PvP Activas")
         lines.append("")
         if not self._pvp_battles:

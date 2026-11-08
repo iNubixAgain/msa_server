@@ -6,8 +6,7 @@ utilizarse como offsets universales ni interpretarse como disponibilidad de
 cada modo en el VPS. Para arranque y destinos actuales por despliegue, consultar
 [red y APK](red-y-apk.md) y [versiones y políticas](versiones-y-politicas.md).
 
-Fecha de verificación: **4 de septiembre de 2026**. Alcance: Metal Slug
-Attack 7.13.0, el interceptor offline incluido en el cliente preparado y el
+Fecha de verificación: **4 de septiembre de 2026**. Alcance: cliente compatible 7.13.0, el interceptor offline incluido en el cliente preparado y el
 backend actual de este repositorio.
 
 Este documento es el mapa contractual del servidor. No es una captura de una
@@ -161,8 +160,8 @@ No forman parte del catálogo de RPC de producción del cliente:
 | `/__health`, `/__offline_status` | Diagnóstico local del backend y Photon. |
 | `/user/get_units`, `/user/set_units` | Compatibilidad y administración del inventario preparado. |
 | `/build_up/get_deck` | Lectura auxiliar de mazos persistidos. |
-| `/snkp/msatk/prod/pack/0/pack_info_list.txt` y archivos de pack | Distribución de contenido estático. |
-| `/snkp/msatk/prod/7130000/*` | Compatibilidad con la ruta heredada de DLC. |
+| Manifiesto de descarga y archivos bajo el prefijo de contenido | Distribución de contenido estático. |
+| Prefijo legado de contenido definido en assets.py | Compatibilidad con la ruta heredada de DLC. |
 
 Estas rutas no deben contarse como prueba de comportamiento original del
 cliente. También existe un fallback global para `POST` desconocidos; su código
@@ -288,7 +287,7 @@ Para validar una ruta al implementarla se debe registrar, como mínimo:
    familia priorizada en un contrato explícito y probar los campos esperados.
 2. `guild_coop`, `guild_online_1on1`, Sneak y varias tiendas tienen rutas en el
    cliente y maestros relacionados, pero carecen de lógica real.
-3. Extra Ops, POW, Training, Story y World Map devuelven estructuras parciales;
+3. eventos temporales, POW, Training, Story y World Map devuelven estructuras parciales;
    una respuesta 200 no acredita persistencia, recompensas ni recorrido final.
 4. Las tablas y los JSON dinámicos necesitan validación cruzada de IDs. No hay
    base de datos ni claves foráneas que impidan referencias rotas.
@@ -306,7 +305,7 @@ son virtuales de ese binario. No equivalen a una captura en dispositivo.
 `SceneOps::InitSpecialOps` (0x16b8f58) consulta
 `GuildMemberCoopBattleAccessor`: etapas, jugadores, estados y tiempo restante.
 `SceneWorldMap::checkSpecialOps` (0x16e32ec) consulta el evento cooperativo del
-usuario. **No corresponde a Extra Ops/Marathon**; publicar un evento Marathon
+usuario. **No corresponde a eventos temporales/Marathon**; publicar un evento Marathon
 no implementa esta modalidad.
 
 | Solicitud nativa | Entrada específica | Respuesta consumida |
@@ -400,7 +399,7 @@ como UTC. Si ambos valores son inválidos se omite esa fila con advertencia
 en el log, sin asignarle una fecha ficticia. La zona visible final depende
 del tratamiento de `DateTime` en la interfaz del dispositivo.
 
-## Battle Tactics: reloj requerido al construir el combate (7.13.0)
+## modo táctico: reloj requerido al construir el combate (7.13.0)
 
 `/battle_tactics/battle_start` entrega dos `player_info`, cada uno con diez
 `unit_param`, diez `deck_attribute`, dos `supporter_param` y los demás campos

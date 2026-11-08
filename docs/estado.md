@@ -8,7 +8,7 @@ configuración y guías; no se inició el servicio operativo ni se realizaron
 nuevas pruebas visuales o Photon. Los resultados de dispositivo descritos
 abajo son evidencia histórica, no una certificación del despliegue actual.
 
-Las restricciones de roster hasta Nova, los modos desactivados y buffs
+Las restricciones de roster hasta la unidad de referencia, los modos desactivados y buffs
 neutralizados pertenecen a la variante privada del VPS, no a este main.
 Consulta [versiones y políticas](versiones-y-politicas.md).
 
@@ -23,9 +23,9 @@ validación visual ni como una batalla Photon real.
 | --- | --- |
 | Inicio y datos base | Registro, tutorial, `top_menu`, tablas maestras, perfiles y mazos aislados con Supports/Assist. |
 | Online público | Matchmaking 1v1 y 2v2, selección de mazo, relay Photon/Luxon y finalización de batallas. |
-| Rank Match | Matchmaking, batalla y recepción de `battle_end`; los registros del 2 de septiembre de 2026 contienen varias partidas completas. |
+| modo competitivo | Matchmaking, batalla y recepción de `battle_end`; los registros del 2 de septiembre de 2026 contienen varias partidas completas. |
 | Social y Guild | Perfiles ajenos, solicitudes y amistades, bloqueos, administración de Guild y chat mundial, privado y de Guild. |
-| Extra Ops | Marathon 296 (tipo 1) abre y procesa el resultado de batalla. |
+| eventos temporales | Marathon 296 (tipo 1) abre y procesa el resultado de batalla. |
 
 ## Implementado y cubierto automáticamente
 
@@ -41,12 +41,12 @@ La cobertura del servidor incluye:
 - reparación de estados iniciales, aislamiento por cliente, escritura atómica
   y recuperación de JSON corrupto;
 - contratos de batallas individuales, Team Battle, Ultimate Mission y Crank;
-- Online 1v1/2v2, Rank Match, rankings, historial FIFO de cinco partidas y
+- Online 1v1/2v2, modo competitivo, rankings, historial FIFO de cinco partidas y
   puntos/rangos;
 - Friend Battle 1v1 y Guild Online 2v2 con salas privadas e invitaciones;
 - Social, listas negras, concurrencia de chat, Guild e indicadores de correo;
-- Draft, persistencia, matchmaking y contrato HTTP de Battle Tactics;
-- Extra Ops Marathon, noticias, tablas maestras, diagnósticos y supervisor de
+- Draft, persistencia, matchmaking y contrato HTTP de modo táctico;
+- eventos temporales Marathon, noticias, tablas maestras, diagnósticos y supervisor de
   Photon.
 
 ## Implementado pero aún pendiente de validación real
@@ -59,7 +59,7 @@ La cobertura del servidor incluye:
 
 ## Regresión abierta
 
-Battle Tactics no se considera actualmente completado en dispositivo. En los
+modo táctico no se considera actualmente completado en dispositivo. En los
 últimos intentos reales ambos jugadores completaron Draft, matchmaking,
 `decide_room`, entrada a la sala Photon y `/battle_tactics/battle_start` con
 HTTP 200; el proceso cliente se cerró durante la transición al combate y nunca

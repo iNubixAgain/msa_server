@@ -40,7 +40,7 @@ No usar `git push --force origin main`, `git push --all`, `git add -f`,
 
 ## Responsabilidades
 
-- El propietario mantiene la compatibilidad con Metal Slug Attack 7.13.0, el
+- El propietario mantiene la compatibilidad con cliente compatible 7.13.0, el
   contenido publicado, Photon/Luxon y la validación final en dispositivos.
 - El colaborador de backend se concentra en lógica de negocio, persistencia,
   concurrencia y pruebas del servidor.

@@ -16,8 +16,8 @@ DEFAULT_NEWS = [
     {
         "id": 1,
         "kind": 1,
-        "subject": "¡Bienvenido a Metal Slug Attack Online!",
-        "body": "Servidor activo con Battle Tactics 24/7, Online 1v1 y 2v2, y eventos Extra Ops.",
+        "subject": "¡Bienvenido al servidor!",
+        "body": "Servidor activo. Consulta al operador los servicios disponibles.",
         "img": "",
         "unread": 1,
     }

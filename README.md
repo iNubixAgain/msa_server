@@ -1,6 +1,6 @@
-﻿# Metal Slug Attack Server
+# Servidor HTTP y relay de sesiones
 
-Servidor comunitario compatible con **Metal Slug Attack 7.13.0**. HTTP gestiona
+Backend HTTP con persistencia JSON y relay UDP para clientes compatibles. HTTP gestiona
 registro, perfiles, inventarios, mazos, social y matchmaking; Photon/Luxon
 transporta las partidas por UDP. La economía y varios modos siguen siendo
 parciales: consulta el [estado funcional](docs/estado.md).
@@ -8,6 +8,9 @@ parciales: consulta el [estado funcional](docs/estado.md).
 El operador aporta un cliente compatible. Este repositorio distribuye servidor,
 contenido servido, valores iniciales, runtime y pruebas. APK, árboles decompilados,
 herramientas privadas, credenciales y datos de jugadores quedan fuera de Git.
+
+La procedencia y los permisos de redistribución de tablas y ejecutables de
+terceros requieren revisión independiente; consulta [distribución](docs/distribucion.md).
 
 ## Instalación e inicio en Windows
 

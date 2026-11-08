@@ -1,4 +1,4 @@
-﻿# Despliegue, mantenimiento y diagnóstico
+# Despliegue, mantenimiento y diagnóstico
 
 ## Preparar un host nuevo
 

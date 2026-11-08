@@ -2048,7 +2048,7 @@ class ModularServerTests(unittest.TestCase):
 
         # Verificar que se registró la conexión
         log_content = self.test_user_log.read_text(encoding="utf-8")
-        self.assertIn("Registro de Usuarios de Metal Slug Attack", log_content)
+        self.assertIn("Registro de Usuarios del servidor", log_content)
         self.assertIn("## Batallas PvP Activas", log_content)
         self.assertIn("## Historial de Conexiones y Eventos", log_content)
         self.assertIn("IP: 127.0.0.1", log_content)
