@@ -1,0 +1,21 @@
+Servers:
+  NameServer:
+    - port: 5058
+      external_address: 147.185.221.229:8556
+  MasterServer:
+    - port: 5055
+      external_address: 147.185.221.231:24255
+  GameServer:
+    - port: 5056
+      external_address: 147.185.221.225:8468
+
+EnableIPv6: false
+NoBanner: true
+MaxConnections: 0
+MaxGamePeers: 0
+TickTimeBudget: 2000
+
+HTTP:
+  enabled: false
+  address: 127.0.0.1
+  port: 5088

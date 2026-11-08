@@ -1,0 +1,92 @@
+# Repositorio público del servidor: negar todo y permitir solo lo necesario.
+/*
+
+# Entrada, arranque y documentación canónica del servidor.
+!/.gitignore
+!/README.md
+!/server.py
+!/admin.py
+!/start.bat
+!/docs/
+/docs/*
+!/docs/arquitectura.md
+!/docs/contribucion.md
+!/docs/estado.md
+!/docs/operacion.md
+!/docs/pendientes.md
+!/docs/Telemetrización.md
+
+# Lógica modular del backend. No se versiona documentación local adicional.
+!/msa_server/
+/msa_server/*
+!/msa_server/*.py
+
+# Pruebas autocontenidas del servidor; se excluyen pruebas de APK/binarios.
+!/tests/
+/tests/*
+!/tests/__init__.py
+!/tests/server_fixtures.py
+!/tests/test_modular_server.py
+!/tests/test_clock.py
+!/tests/test_moderation.py
+!/tests/test_diagnostics.py
+!/tests/test_photon.py
+!/tests/test_pvp_history.py
+
+# Contenido y estados iniciales que el servidor necesita en runtime.
+!/server_content/
+/server_content/*
+!/server_content/file_list.json
+!/server_content/friend_top.json
+!/server_content/practice_1on1_start.json
+!/server_content/story.json
+!/server_content/world_map.json
+!/server_content/files/
+!/server_content/files/**
+!/server_defaults/
+/server_defaults/*
+!/server_defaults/*.json
+
+# Estado mutable privado: conservar solo la carpeta vacía.
+!/server_data/
+/server_data/*
+!/server_data/.gitkeep
+
+# Relay Photon mínimo requerido por server.py.
+!/online_runtime/
+/online_runtime/*
+!/online_runtime/luxon_server.exe
+!/online_runtime/config.yml
+!/online_runtime/config.example.yml
+
+# Defensa adicional dentro de las rutas permitidas.
+__pycache__/
+*.py[cod]
+*.pyd
+*.log
+*.tmp
+*.bak
+*.sqlite
+*.sqlite3
+.coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Material del cliente Android y herramientas de ingeniería inversa.
+*.apk
+*.apks
+*.aab
+*.idsig
+*.jar
+*.obm
+*.so
+*.keystore
+*.jks
+
+# Guias publicas de instalacion, red y politica por version.
+!/docs/red-y-apk.md
+!/docs/despliegue.md
+!/docs/versiones-y-politicas.md
+!/docs/tablas-maestras.md
+!/docs/distribucion.md
