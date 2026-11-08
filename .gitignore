@@ -83,3 +83,9 @@ __pycache__/
 *.so
 *.keystore
 *.jks
+
+# Guias publicas de instalacion, red y politica por version.
+!/docs/red-y-apk.md
+!/docs/despliegue.md
+!/docs/versiones-y-politicas.md
+!/docs/tablas-maestras.md

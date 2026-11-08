@@ -1,5 +1,10 @@
 # Contribución y flujo Git
 
+Las instrucciones de arranque están en [README](../README.md),
+[red y APK](red-y-apk.md) y [despliegue](despliegue.md). La documentación de
+un comando debe indicar si está distribuido por esta rama o solo existe en
+un paquete privado; una función local no debe anunciarse como disponible en main.
+
 Este repositorio publica exclusivamente el servidor. No se aceptan APK, código
 decompilado, herramientas del cliente, logs, secretos ni datos de jugadores.
 

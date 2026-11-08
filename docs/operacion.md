@@ -1,9 +1,16 @@
 # Operación, pruebas y publicación
 
+Guías revisadas el 8 de noviembre de 2026 para main `ddbe6e1c`:
+[red y APK](red-y-apk.md), [despliegue y respaldo](despliegue.md) y
+[políticas por versión](versiones-y-politicas.md). Las direcciones de los
+ejemplos se sustituyen por las de cada instalación. El paquete privado del
+VPS y los scripts del cliente no se distribuyen en este main.
+
 ## Configuración
 
-`start.bat` define los valores de despliegue usados normalmente. También se
-pueden establecer antes de ejecutar `python server.py`:
+`start.bat` define y sobrescribe host público y puertos. Para usar variables
+del entorno, ejecuta directamente `python server.py`; alternativamente edita
+las líneas `set` del archivo antes de usarlo:
 
 | Variable | Predeterminado en Python | Uso |
 | --- | --- | --- |
@@ -34,7 +41,7 @@ deben documentar como permanentes.
 ## Inicio, salud y detención
 
 ```powershell
-start.bat
+cmd /c start.bat
 Invoke-RestMethod http://127.0.0.1:42069/__health
 Get-Process python,luxon_server -ErrorAction SilentlyContinue
 ```
@@ -68,8 +75,9 @@ python -m unittest discover -s tests -v
 
 La suite pública usa carpetas temporales. No modifica `server_data/`, no inicia
 el servidor de producción y no equivale a validar interfaz o Photon en un
-dispositivo real. El 3 de septiembre de 2026 pasaron las 64 pruebas del
-workspace completo; 50 corresponden al conjunto publicable del servidor.
+dispositivo real. El 8 de noviembre de 2026 se ejecutó desde una copia limpia
+de main: **73 pruebas aprobadas**. Los recuentos de 64/50 en informes anteriores
+describen otra revisión y no son el resultado de esta auditoría.
 
 ## Traslado de cuenta entre dispositivos
 

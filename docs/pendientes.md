@@ -1,5 +1,15 @@
 # Pendientes y limitaciones
 
+Revisión operativa del 8 de noviembre de 2026: la suite pública aprobó 73
+pruebas; sigue pendiente validar arranque/red desde dispositivos en cada
+despliegue. main ejecuta Luxon directamente como EXE de Windows: el soporte
+Wine de variantes privadas no está incorporado aquí. No usar una guía de
+otro paquete como prueba de que `python3 server.py` basta en Linux.
+
+La corrección privada de selectores limitados a 2016 exige comprobar una
+instalación afectada tras descargar tablas. No hay una causa única confirmada
+con respuesta/captura del VPS; véase [políticas por versión](versiones-y-politicas.md).
+
 ## Prioridad inmediata
 
 1. **Battle Tactics:** validar en dos dispositivos la adaptación de reloj de

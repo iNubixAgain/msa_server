@@ -1,5 +1,9 @@
 # Arquitectura del servidor
 
+Alcance de esta guía: main `ddbe6e1c`. La instalación y los cuatro destinos
+de red se detallan en [red y APK](red-y-apk.md); las implementaciones locales
+adicionales se distinguen en [versiones y políticas](versiones-y-politicas.md).
+
 ## Flujo principal
 
 `server.py` es el único punto de entrada. Configura logs y bloqueo de instancia,
@@ -48,6 +52,8 @@ payload serializable. La lógica nueva debe permanecer en `msa_server/`;
 
 ```text
 server_data/
+  accounts.json
+  bans.json
   social.json
   guilds.json
   chat_world.json
@@ -67,6 +73,7 @@ server_data/
     ultimate_mission.json
     snatch_wars.json
     ingame_notifications.json
+    save_data.json
 ```
 
 `storage.py` escribe mediante archivo temporal, `flush`, `fsync` y reemplazo

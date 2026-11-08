@@ -1,5 +1,11 @@
 # Telemetrización y trazabilidad de endpoints del cliente
 
+Nota de revisión, 8 de noviembre de 2026: se conserva el inventario histórico
+y sus direcciones de análisis como evidencia de esa compilación. No deben
+utilizarse como offsets universales ni interpretarse como disponibilidad de
+cada modo en el VPS. Para arranque y destinos actuales por despliegue, consultar
+[red y APK](red-y-apk.md) y [versiones y políticas](versiones-y-politicas.md).
+
 Fecha de verificación: **4 de septiembre de 2026**. Alcance: Metal Slug
 Attack 7.13.0, el interceptor offline incluido en el cliente preparado y el
 backend actual de este repositorio.

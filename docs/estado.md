@@ -1,5 +1,17 @@
 # Estado funcional del servidor
 
+## Revisión pública del 8 de noviembre de 2026
+
+Sobre main `ddbe6e1c`, **73 pruebas aprobadas** con
+`python -m unittest discover -s tests -v` en Windows. Se revisaron contratos,
+configuración y guías; no se inició el servicio operativo ni se realizaron
+nuevas pruebas visuales o Photon. Los resultados de dispositivo descritos
+abajo son evidencia histórica, no una certificación del despliegue actual.
+
+Las restricciones de roster hasta Nova, los modos desactivados y buffs
+neutralizados pertenecen a la variante privada del VPS, no a este main.
+Consulta [versiones y políticas](versiones-y-politicas.md).
+
 Fecha de auditoría: **3 de septiembre de 2026**. Se contrastaron los módulos de
 `msa_server/`, las pruebas automatizadas y, cuando existía evidencia reciente,
 los registros de dispositivo. Una prueba de contrato HTTP no se presenta como
