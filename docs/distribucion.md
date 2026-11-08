@@ -26,6 +26,12 @@ las tablas por su declaración explícita de permiso de redistribución.
 
 ## Compatibilidad técnica
 
+La portada incorpora una ilustración nueva generada como fan art decorativo,
+inspirada en Teto/Mesmerizer. No se reutiliza una captura del vídeo ni se
+presenta como material oficial o como evidencia de afiliación. Los personajes
+y referencias de terceros conservan sus respectivos titulares; esta decoración
+no cambia las condiciones aplicables al código o al runtime.
+
 Hay identificadores, rutas HTTP y nombres de campos fijados por el protocolo
 del cliente. Se conservan cuando son necesarios para compatibilidad. Cambiar
 una URI a un nombre genérico sin modificar el cliente rompería descargas.

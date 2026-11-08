@@ -1,5 +1,8 @@
 # Operación, pruebas y publicación
 
+Para instalar desde cero sigue [servidor propio](servidor-propio.md).
+Para encontrar comandos y sus efectos usa [herramientas](herramientas.md).
+
 Guías revisadas el 8 de noviembre de 2026 para la base pública revisada:
 [red y APK](red-y-apk.md), [despliegue y respaldo](despliegue.md) y
 [políticas por versión](versiones-y-politicas.md). Las direcciones de los
@@ -81,7 +84,7 @@ describen otra revisión y no son el resultado de esta auditoría.
 
 ## Traslado de cuenta entre dispositivos
 
-El servidor implementa el contrato de el protocolo compatible en `msa_server/accounts.py`:
+El servidor implementa el contrato del protocolo compatible en `msa_server/accounts.py`:
 
 - `POST /setting/upload_save_data`: formulario con `save_data` Base64. Se
   conserva exactamente el texto recibido, con límite de 4 MiB y validación

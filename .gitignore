@@ -90,3 +90,8 @@ __pycache__/
 !/docs/versiones-y-politicas.md
 !/docs/tablas-maestras.md
 !/docs/distribucion.md
+!/docs/servidor-propio.md
+!/docs/herramientas.md
+!/docs/assets/
+/docs/assets/*
+!/docs/assets/teto-mesmerizer-banner.png

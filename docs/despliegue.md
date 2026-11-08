@@ -1,5 +1,8 @@
 # Despliegue, mantenimiento y diagnóstico
 
+Recorrido completo de instalación: [servidor propio](servidor-propio.md).
+Inventario de utilidades y parámetros: [herramientas](herramientas.md).
+
 ## Preparar un host nuevo
 
 El main auditado ejecuta luxon_server.exe directamente desde PhotonSupervisor.

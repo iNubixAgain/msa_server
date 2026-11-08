@@ -1,5 +1,7 @@
 # Mambo Sociedad Anónima (MSA)
 
+![Ilustración decorativa de Teto con estética Mesmerizer](docs/assets/teto-mesmerizer-banner.png)
+
 Mambo Sociedad Anónima (MSA) es el nombre actual de este proyecto de servidor HTTP, persistencia JSON y relay UDP para clientes compatibles. HTTP gestiona
 registro, perfiles, inventarios, mazos, social y matchmaking; Photon/Luxon
 transporta las partidas por UDP. La economía y varios modos siguen siendo
@@ -12,6 +14,13 @@ herramientas privadas, credenciales y datos de jugadores quedan fuera de Git.
 Las tablas y el runtime de terceros se conservan con el permiso de
 redistribución declarado por el mantenedor. Consulta [distribución](docs/distribucion.md)
 para su alcance y atribuciones.
+
+**Empieza aquí:** [guía completa para tu propio servidor](docs/servidor-propio.md).
+Incluye requisitos, instalación, red, configuración del cliente Android,
+arranque, verificación en teléfonos, operación y backups.
+
+**Herramientas:** [inventario y uso de cada herramienta](docs/herramientas.md).
+Indica cuáles vienen en GitHub y cuáles pertenecen al workspace privado.
 
 ## Instalación e inicio en Windows
 
@@ -58,6 +67,8 @@ servidor para detener HTTP y Luxon ordenadamente.
 
 ## Guías
 
+- [Servidor propio, paso a paso](docs/servidor-propio.md): del clon a login, descargas y partidas verificadas.
+- [Herramientas](docs/herramientas.md): comandos, efectos, requisitos y límites de cada utilidad.
 - [Red y APK](docs/red-y-apk.md): cuatro destinos, LAN, túneles/NAT y flujo privado del cliente.
 - [Despliegue](docs/despliegue.md): VPS, backups, actualización y diagnóstico.
 - [Versiones y políticas](docs/versiones-y-politicas.md): main, desarrollo y variante histórica del VPS.
@@ -77,3 +88,8 @@ Las pruebas públicas usan datos temporales y contratos HTTP. Descarga nativa,
 interfaz y partidas Photon requieren dispositivos. Estas guías se contrastaron
 el **8 de noviembre de 2026** con la base pública revisada; no incorporan los cambios
 sin commit de otra rama ni despliegan la copia privada del VPS.
+
+La ilustración de portada es fan art generado para decorar el proyecto,
+inspirado en Teto/Mesmerizer; no es una captura ni material oficial y no indica
+afiliación con sus titulares. El nombre y la ilustración no forman parte del
+protocolo del servidor.

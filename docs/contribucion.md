@@ -25,7 +25,8 @@ Antes de publicar:
 git status
 git diff
 python -m unittest discover -s tests -v
-git add <archivos concretos>
+# Sustituye esta lista por los archivos concretos de tu cambio.
+git add README.md docs/operacion.md
 git diff --cached
 git commit -m "feat(area): descripción breve"
 git push -u origin feat/nombre-corto
